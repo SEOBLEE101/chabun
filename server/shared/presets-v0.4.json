@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "notice": "수치는 출발점으로 제공하는 예시 선호입니다. 같은 설정의 같은 체감이나 건강 효과를 보장하지 않습니다.",
+  "presets": [
+    {
+      "id": "cool_down", "name": "산뜻하게 식히기", "kind": "builtin", "comfort": "cool_down",
+      "vehicle": { "tempC": 23.5, "fan": "medium", "seat": "keep" },
+      "home": { "tempC": 25, "fan": "medium", "power": "on" }
+    },
+    {
+      "id": "quiet_rest", "name": "조용히 쉬기", "kind": "builtin", "comfort": "quiet_rest",
+      "vehicle": { "tempC": 24, "fan": "low", "seat": "keep" },
+      "home": { "tempC": 25, "fan": "low", "power": "on" }
+    },
+    {
+      "id": "gentle_refresh", "name": "부드럽게 기분 전환", "kind": "builtin", "comfort": "gentle_refresh",
+      "vehicle": { "tempC": 25, "fan": "low", "seat": "manual_comfort" },
+      "home": { "tempC": 25.5, "fan": "auto", "power": "on" }
+    }
+  ]
+}

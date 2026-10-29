@@ -1,0 +1,32 @@
+{
+  "packageName": "__APPLICATION_ID__",
+  "appDescription": "Chabun offers a short quiet rest in a parked car, started by the driver on the vehicle screen. This build reads the vehicle state only and never changes vehicle settings.",
+  "invokeWord": "차분",
+  "version": "__VERSION_NAME__",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "PREPARE_QUIET_REST",
+        "description": "Select the quiet rest and open its preparation screen. The rest starts only when the driver presses start on the vehicle screen while parked.",
+        "parameters": { "type": "object", "properties": {}, "required": [] }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "OPEN_CABIN_SETTINGS",
+        "description": "Open the Chabun cabin settings on the seat, climate or light tab to review or save rest preferences. Does not change any vehicle setting.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "section": { "type": "string", "enum": ["seat", "climate", "light"], "description": "The tab to open." }
+          },
+          "required": ["section"]
+        }
+      }
+    }
+  ]
+}

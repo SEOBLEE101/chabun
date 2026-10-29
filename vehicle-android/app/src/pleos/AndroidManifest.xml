@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 차 안 맞추기: read and write climate, seat heating/ventilation and ambient light, only while parked.
+         Pleos App Market approval of these CONTROL_CAR_* permissions is still needed before distribution. -->
+    <uses-permission android:name="pleos.car.permission.CAR_CLIMATE" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_CLIMATE" />
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_SEATS" />
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />
+    <uses-permission android:name="pleos.car.permission.CONTROL_CAR_LIGHTS" />
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- INFO_DRIVER_SEAT: which front seat is the driver's (normal permission). -->
+    <uses-permission android:name="android.car.permission.CAR_INFO" />
+    <application>
+        <uses-library android:name="android.car" android:required="false" />
+    </application>
+</manifest>

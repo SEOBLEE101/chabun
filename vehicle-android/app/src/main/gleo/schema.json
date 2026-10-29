@@ -1,0 +1,56 @@
+{
+  "packageName": "__APPLICATION_ID__",
+  "appDescription": "Chabun offers a short quiet rest in a parked car, started by the driver on the vehicle screen. While the car is parked it can also set the climate, seat heating or ventilation and the ambient light, and it restores them when the rest ends.",
+  "invokeWord": "차분",
+  "version": "__VERSION_NAME__",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "PREPARE_QUIET_REST",
+        "description": "Select the quiet rest and open its preparation screen. The rest starts only when the driver presses start on the vehicle screen while parked.",
+        "parameters": { "type": "object", "properties": {}, "required": [] }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "OPEN_CABIN_SETTINGS",
+        "description": "Open the Chabun cabin settings on the seat, climate or light tab to review or save rest preferences. Does not change any vehicle setting.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "section": { "type": "string", "enum": ["seat", "climate", "light"], "description": "The tab to open." }
+          },
+          "required": ["section"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "SET_CABIN",
+        "description": "While the car is parked and no rest is running, set the cabin now. Mode rest applies the selected rest's settings; mode custom applies only the given values. Seats are never moved. Nothing is changed while driving.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "mode": { "type": "string", "enum": ["rest", "custom"], "description": "rest uses the selected rest's settings and takes no other values; custom uses the values given." },
+            "temperature": { "type": "number", "description": "Set temperature in degrees Celsius, from 18 to 28 in steps of 0.5." },
+            "fan": { "type": "string", "enum": ["low", "medium", "high", "auto"], "description": "Fan strength." },
+            "ac": { "type": "string", "enum": ["on", "off"], "description": "Air conditioning (cooling)." },
+            "seat": { "type": "string", "enum": ["heat", "vent", "off"], "description": "Seat heating, seat ventilation, or both off." },
+            "seatLevel": { "type": "number", "description": "Whole level from 1 to 3 for seat heating or ventilation." },
+            "seatSide": { "type": "string", "enum": ["driver", "passenger"], "description": "Which front seat. The driver seat when not given." },
+            "light": { "type": "string", "enum": ["on", "off"], "description": "Ambient light on or off." },
+            "lightColor": { "type": "string", "enum": ["cream", "neutral", "sage", "mist"], "description": "Ambient light color: cream is warm, neutral is a calm white, sage is an olive green, mist is a pale blue." },
+            "brightness": { "type": "number", "description": "Whole percent from 10 to 100 for the ambient light." }
+          },
+          "required": ["mode"]
+        }
+      }
+    }
+  ]
+}

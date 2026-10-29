@@ -1,0 +1,21 @@
+{
+  "name": "pit-in-recovery-prototype",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Pit-In Windows/Android v0.4: private HTTPS summary relay and synthetic comfort/arrival prototype",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "start:https": "node server/https.mjs",
+    "test": "node --test tests/relay.test.mjs tests/session.test.mjs tests/continuity.test.mjs tests/preset-sync.test.mjs tests/preset-sync-web.test.mjs tests/web-relay.test.mjs",
+    "test:vehicle-core": "node scripts/test-vehicle-core.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "demo:continuity": "node server/preset-sync/index.mjs",
+    "start:preset-sync": "node server/preset-sync/index.mjs",
+    "test:preset-sync": "node --test tests/preset-sync.test.mjs tests/preset-sync-web.test.mjs",
+    "test:continuity": "node --test tests/continuity.test.mjs",
+    "test:delta": "node tests/delta-installer.test.mjs",
+    "test:smartthings": "node integrations/smartthings/planner.test.mjs"
+  }
+}

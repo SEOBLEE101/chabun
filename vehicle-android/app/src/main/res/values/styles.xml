@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Car screens are drawn by the app; a dark window avoids a light flash before the first frame. -->
+    <style name="PitIn.Car" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/pitin_graphite_bg</item>
+        <item name="android:statusBarColor">@color/pitin_graphite_bg</item>
+        <item name="android:navigationBarColor">@color/pitin_graphite_bg</item>
+        <item name="android:colorAccent">#FFF4EFE7</item>
+    </style>
+    <color name="pitin_graphite_bg">#FF111112</color>
+</resources>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 앱 컴포넌트가 직접 그린다. 시작 창은 Pearl 바탕. 화면 분위기는 코드에서 바꾼다. -->
+    <style name="Theme.PitIn" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/pit_pearl_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:colorAccent">#141413</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+    </style>
+    <color name="pit_pearl_bg">#F6F4F0</color>
+</resources>

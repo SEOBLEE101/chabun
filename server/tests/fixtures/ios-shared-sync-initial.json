@@ -1,0 +1,126 @@
+{
+  "state": {
+    "demo": true,
+    "revision": 0,
+    "now": "2027-01-15T08:00:00.000Z",
+    "presets": [
+      {
+        "id": "cool_down",
+        "name": "산뜻하게 식히기",
+        "kind": "builtin",
+        "comfort": "cool_down",
+        "vehicle": {
+          "tempC": 23.5,
+          "fan": "medium",
+          "seat": "keep"
+        },
+        "home": {
+          "tempC": 25,
+          "fan": "medium",
+          "power": "on"
+        }
+      },
+      {
+        "id": "quiet_rest",
+        "name": "조용히 쉬기",
+        "kind": "builtin",
+        "comfort": "quiet_rest",
+        "vehicle": {
+          "tempC": 24,
+          "fan": "low",
+          "seat": "keep"
+        },
+        "home": {
+          "tempC": 25,
+          "fan": "low",
+          "power": "on"
+        }
+      },
+      {
+        "id": "gentle_refresh",
+        "name": "부드럽게 기분 전환",
+        "kind": "builtin",
+        "comfort": "gentle_refresh",
+        "vehicle": {
+          "tempC": 25,
+          "fan": "low",
+          "seat": "manual_comfort"
+        },
+        "home": {
+          "tempC": 25.5,
+          "fan": "auto",
+          "power": "on"
+        }
+      }
+    ],
+    "selectedId": "quiet_rest",
+    "defaultId": "quiet_rest",
+    "autoDefaultOnRest": false,
+    "feeling": "skip",
+    "recommendation": null,
+    "plan": null,
+    "devices": {
+      "vehicle": {
+        "parked": true,
+        "proposal": null,
+        "confirmedPresetId": null,
+        "simulated": true
+      },
+      "home": {
+        "id": "home-ac",
+        "name": "예시 집 · 거실 에어컨",
+        "tempC": 27,
+        "fan": "auto",
+        "power": "off",
+        "revision": 0,
+        "online": true,
+        "updatedBy": "fixture",
+        "observedAt": "2027-01-15T08:00:00.000Z"
+      }
+    },
+    "events": [
+      {
+        "id": "227ae1dc-63b8-48f6-aa14-74b094a32d3a",
+        "at": "2027-01-15T08:00:00.000Z",
+        "origin": "system",
+        "label": "예시 환경을 열었어요. 실제 기기·건강정보·위치를 사용하지 않아요."
+      }
+    ],
+    "providers": [
+      {
+        "id": "demo",
+        "name": "연결 경험 시연",
+        "status": "demo",
+        "detail": "같은 서버의 폰·차·집 화면이 합성 상태를 공유해요.",
+        "liveCommandAvailable": false
+      },
+      {
+        "id": "smartthings",
+        "name": "Samsung SmartThings",
+        "status": "setup_required",
+        "detail": "개인 시험용 기기 조회·지원값 진단 도구. 실제 계정·기기 확인과 명령 연결이 필요해요.",
+        "liveCommandAvailable": false
+      },
+      {
+        "id": "apple_home",
+        "name": "Apple Home",
+        "status": "setup_required",
+        "detail": "아이폰의 HomeKit 연결·집/장면 조회 준비. 이 시연에서 집에 명령하지 않아요.",
+        "liveCommandAvailable": false
+      },
+      {
+        "id": "google_home",
+        "name": "Google Home",
+        "status": "setup_required",
+        "detail": "별도 모바일 SDK·프로젝트·서명·기기 지원 확인이 필요해요.",
+        "liveCommandAvailable": false
+      }
+    ]
+  },
+  "sync": {
+    "epoch": "11111111-1111-4111-8111-111111111111",
+    "deviceId": "22222222-2222-4222-8222-222222222222",
+    "role": "phone",
+    "expiresAt": "2027-01-15T10:00:00.000Z"
+  }
+}

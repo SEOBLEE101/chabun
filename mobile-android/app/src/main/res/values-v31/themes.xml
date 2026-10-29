@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+: 시스템 시작 창에 아이콘을 띄우지 않고 바탕만 보인다. 이어서 앱 인트로가 글자로 시작한다. -->
+    <style name="Theme.PitIn" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/pit_pearl_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:colorAccent">#141413</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:windowSplashScreenBackground">@color/pit_pearl_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+    </style>
+
+    <!-- Android 13+: 마지막으로 쓴 화면 분위기의 바탕으로 다음 시작 창을 보인다(MainActivity.rememberSplash). -->
+    <style name="Theme.PitIn.Splash.Graphite" parent="Theme.PitIn">
+        <item name="android:windowSplashScreenBackground">#111112</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+    <style name="Theme.PitIn.Splash.Umber" parent="Theme.PitIn">
+        <item name="android:windowSplashScreenBackground">#1C1611</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>
