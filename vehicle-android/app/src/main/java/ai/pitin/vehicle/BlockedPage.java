@@ -138,7 +138,7 @@ final class BlockedPage extends CarPage {
             item(i++, "화면 사용", s.uxRestricted == null ? "확인할 수 없어요" : s.uxRestricted ? "지금은 화면 사용이 제한돼요" : "제한 없음",
                     Boolean.FALSE.equals(s.uxRestricted) ? 1 : 0);
             if (!s.permissionVerified) item(i++, "차 상태 읽기", "읽기 권한을 아직 확인하지 못했어요", 0);
-            else if (!s.simulation && !BuildConfig.LIVE_CONTROL) item(i++, "이 앱", "읽기 전용이라 실제 차에서는 아직 시작하지 않아요", 0);
+            else if (!s.simulation && !BuildConfig.LIVE_REST) item(i++, "이 앱", "읽기 전용이라 실제 차에서는 아직 시작하지 않아요", 0);
         }
         while (i < ROWS) item(i++, null, null, 0);
 
@@ -164,7 +164,7 @@ final class BlockedPage extends CarPage {
         if (s.uxRestricted == null) return "화면 사용 조건을 확인할 수 없어요.";
         if (s.uxRestricted) return "지금은 화면 사용이 제한돼요.";
         if (!s.permissionVerified) return "차 상태 읽기 권한을 확인해 주세요.";
-        if (!s.simulation) return "이 앱은 차 상태를 읽기만 해요.";
+        if (!s.simulation && !BuildConfig.LIVE_REST) return "이 앱은 차 상태를 읽기만 해요.";
         return "선택한 쉼을 확인해 주세요.";
     }
 

@@ -106,8 +106,8 @@ public final class MainActivity extends Activity {
         if (BuildConfig.SIMULATED_VEHICLE && BuildConfig.DEMO_START_PARKED) environment.simulate("parked");
         // Every cabin write (and restore write) asks this gate right before it is sent.
         if (environment.cabin() != null) environment.cabin().setGate(this::cabinBlocked);
-        // The car-connected build needs the speed reading (a runtime permission) before it can verify parking.
-        if (BuildConfig.LIVE_CONTROL && savedInstanceState == null) {
+        // A build that rests on real values needs the speed reading (a runtime permission) before it can verify parking.
+        if (BuildConfig.LIVE_REST && savedInstanceState == null) {
             java.util.List<String> missing = new java.util.ArrayList<>();
             for (String p : environment.requiredPermissions())
                 if (checkSelfPermission(p) != android.content.pm.PackageManager.PERMISSION_GRANTED) missing.add(p);
@@ -479,6 +479,7 @@ public final class MainActivity extends Activity {
         CabinActuator cabin = environment.cabin();
         cabinFinishNote = null;
         cabinRestNote = "";
+        if (cabin == null && BuildConfig.LIVE_REST) cabinRestNote = "차 안은 직접 맞춰 주세요";
         if (cabin == null || shell == null) return;
         java.util.List<CabinControl.Step> plan = restPlan();
         if (plan.isEmpty()) return;
@@ -587,10 +588,10 @@ public final class MainActivity extends Activity {
                 foreground && localConfirmation && !selectedPreset.isEmpty());
     }
 
-    /** What SafetyGate judges: the demo's synthetic state, or in the pleos build the car's real values. */
+    /** What SafetyGate judges: the demo's synthetic state, or in the pleos builds the car's real values. */
     SafetyGate.Snapshot restSnapshot(long now) {
         SafetyGate.Snapshot s = environment.snapshot(now);
-        return BuildConfig.LIVE_CONTROL ? CabinControl.forLiveRest(s) : s;
+        return BuildConfig.LIVE_REST ? CabinControl.forLiveRest(s) : s;
     }
 
     void render() {

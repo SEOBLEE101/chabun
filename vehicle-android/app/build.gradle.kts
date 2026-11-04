@@ -92,7 +92,9 @@ android {
         versionName = "0.1.0"
         resValue("string", "relay_default_origin", "")
         buildConfigField("boolean", "DEMO_START_PARKED", "false")
-        // 차 안 맞추기 on a real car (pleos flavor only): SafetyGate judges real parking values for a live rest.
+        // A rest judged on the car's real values (pleos and pleosReadOnly): SafetyGate decides on real parking values.
+        buildConfigField("boolean", "LIVE_REST", "false")
+        // 차 안 맞추기 on a real car (pleos flavor only): the build also changes cabin values while parked.
         buildConfigField("boolean", "LIVE_CONTROL", "false")
         testInstrumentationRunner = if (providers.gradleProperty("gleoAcceptance").orNull == "true")
             "ai.pitin.vehicle.GleoInstrumentation" else if (providers.gradleProperty("restFlowAcceptance").orNull == "true")
@@ -118,10 +120,13 @@ android {
             resValue("string", "app_name", "차분 · Demo")
         }
         if (includePleos) {
+            // Before Vehicle Control opens: a rest on the car's real state, while the person sets the cabin by hand.
+            // No CONTROL_CAR_* permission and no cabin actuator, so this build never changes a vehicle value.
             create("pleosReadOnly") {
                 dimension = "environment"
                 applicationIdSuffix = ".readonly"
                 buildConfigField("boolean", "SIMULATED_VEHICLE", "false")
+                buildConfigField("boolean", "LIVE_REST", "true")
                 resValue("string", "app_name", "차분 · Read only")
             }
             // 차 안 맞추기: changes climate, seat heating/ventilation and ambient light while parked (Pleos SDK).
@@ -129,6 +134,7 @@ android {
                 dimension = "environment"
                 applicationIdSuffix = ".pleos"
                 buildConfigField("boolean", "SIMULATED_VEHICLE", "false")
+                buildConfigField("boolean", "LIVE_REST", "true")
                 buildConfigField("boolean", "LIVE_CONTROL", "true")
                 resValue("string", "app_name", "차분 · 차 연결")
             }

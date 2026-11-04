@@ -88,7 +88,8 @@ final class FeaturesPage extends CarPage {
         CabinSettings saved = shell.cabinSaved;
         // 데모 값은 차 안 설정의 '지금 차' 카드(CabinPage)와 같게 둔다. 설정 온도와 실내 온도는 섞지 않는다
         String[] nows = demo ? new String[]{"설정 24.0° · 실내 26.5°", "읽을 수 없어요", "열선 1단계", "켜짐 · 밝기 60%", "끔"}
-                : new String[]{"읽을 수 없어요", "읽을 수 없어요", "읽을 수 없어요", "읽을 수 없어요", "끔"};
+                : new String[]{a.environment.climateNow() != null ? a.environment.climateNow() : "읽을 수 없어요",
+                        "읽을 수 없어요", "읽을 수 없어요", "읽을 수 없어요", "끔"};
         boolean customClimate = "custom".equals(saved.driverClimate.mode);
         String[] wants = {
                 customClimate ? CabinSettings.temp(saved.driverClimate.tempTenths) : CarCopy.restTemp(a.selectedPreset),

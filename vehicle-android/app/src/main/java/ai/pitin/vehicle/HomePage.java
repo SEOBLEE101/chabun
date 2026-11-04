@@ -162,6 +162,9 @@ final class HomePage extends CarPage {
             String plan = CabinControl.describe(a.restPlan());
             sub = a.cabinFinishNote != null ? a.cabinFinishNote.replace(".", "")
                     : plan.isEmpty() ? "시작해도 차 안은 그대로예요" : "시작하면 " + plan;
+        } else if (BuildConfig.LIVE_REST && !a.selectedPreset.isEmpty()) {
+            String plan = CabinControl.describe(a.restPlan());
+            sub = plan.isEmpty() ? "차 안은 그대로 두고 쉬어요" : "손으로 맞출 값 · " + plan;
         } else if (!a.selectedPreset.isEmpty()) sub += " · 공조는 직접 맞춰 주세요";
         restSub.setText(sub);
         change.setText(paused ? "쉬기 마치기" : "바꾸기");

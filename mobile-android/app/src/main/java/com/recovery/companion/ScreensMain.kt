@@ -313,13 +313,15 @@ class ConnectScreen(shell: PhoneShell) : Screen(shell) {
             addView(ui.display("필요한 것만\n연결하세요"))
             addView(ui.body("연결하지 않아도 바로 쉴 수 있어요."))
         })
-        c.addView(ui.list(
+        val rows = mutableListOf<View>(
             ui.row("car", "차량", subView = ui.live(if (app.pairingConfirmed) "차량 · 이어져 있어요" else conn, idle)) { shell.push(PairScreen(shell)) },
             ui.row("pulse", "운동 기록", "$source · 누를 때만 최근 운동을 읽어요", end = health) { shell.push(HealthScreen(shell)) },
-            ui.row("sliders", "취향 함께 쓰기", "차와 웹이 같은 쉼 목록을 봐요", end = Fmt.syncedState(ctx)) { app.openSyncedPresets() },
-            ui.row("house", "집", "Apple Home · SmartThings · Google Home", end = "살펴보기") { shell.push(HomesScreen(shell)) },
-            ui.row("moon", "화면 분위기", AppearancePreferences(ctx).shortStatus()) { shell.push(AppearanceScreen(shell)) }
-        ))
+            ui.row("sliders", "취향 함께 쓰기", "차와 웹이 같은 쉼 목록을 봐요", end = Fmt.syncedState(ctx)) { app.openSyncedPresets() }
+        )
+        // 집 연결은 아직 합성 기기만 있는 체험이라 디버그 빌드에서만 보인다.
+        if (app.debug) rows += ui.row("house", "집", "Apple Home · SmartThings · Google Home", end = "살펴보기") { shell.push(HomesScreen(shell)) }
+        rows += ui.row("moon", "화면 분위기", AppearancePreferences(ctx).shortStatus()) { shell.push(AppearanceScreen(shell)) }
+        c.addView(ui.list(*rows.toTypedArray()))
         c.addView(ui.sunken(28f, 20f, 18f, 10f).apply {
             addView(ui.rowTitle("연결과 보내기는 따로예요", 15f))
             addView(ui.body("운동 기록은 보낼 때마다 한 번씩 물어봐요. 연결을 끊으면 차에 보낸 요약도 함께 지워요.", 14f))

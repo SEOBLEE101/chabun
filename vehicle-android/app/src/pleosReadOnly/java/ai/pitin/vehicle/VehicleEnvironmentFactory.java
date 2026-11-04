@@ -2,15 +2,20 @@ package ai.pitin.vehicle;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.os.SystemClock;
 import ai.pleos.playground.vehicle.Vehicle;
 import ai.pleos.playground.vehicle.api.model.area.SeatArea;
 import ai.pleos.playground.vehicle.api.model.capability.AccessType;
 import ai.pleos.playground.vehicle.constant.area.SeatValue;
 import ai.pleos.playground.vehicle.constant.unit.TemperatureUnit;
+import java.util.Locale;
 import kotlin.Unit;
 
-/** Optional, read-only integration with the verified Vehicle 2.3.2 AAR. */
+/**
+ * The build for before Vehicle Control opens: a rest judged on the car's real gear, speed, call and UX state, with the
+ * Vehicle 2.3.2 AAR only read. It has no cabin actuator and declares no CONTROL_CAR_* permission.
+ */
 final class VehicleEnvironmentFactory {
     static VehicleEnvironment create(Context context) { return new PleosReadOnlyEnvironment(context); }
 
@@ -18,12 +23,14 @@ final class VehicleEnvironmentFactory {
         private final Context context;
         private final Vehicle vehicle;
         private final ParkingSignals parking;
+        private final AudioManager audio;
         private final SeatArea zone = new SeatArea(SeatValue.ROW_1_LEFT);
         private volatile boolean closed;
         private volatile long requestStartedAt;
         private volatile long readAt;
         private volatile int generation;
         private volatile String readout = "Climate data has not been read.";
+        private volatile Float setTemperature;
 
         PleosReadOnlyEnvironment(Context context) {
             this.context = context.getApplicationContext();
@@ -36,14 +43,22 @@ final class VehicleEnvironmentFactory {
                 // Some Pleos images expose Vehicle SDK without the optional AAOS client library.
             }
             parking = availableParking;
+            audio = (AudioManager) this.context.getSystemService(Context.AUDIO_SERVICE);
             try { vehicle.initialize(); }
             catch (Exception e) { readout = "Pleos Vehicle Service is unavailable."; }
         }
 
         public SafetyGate.Snapshot snapshot(long nowMs) {
-            return parking != null ? parking.snapshot(nowMs)
-                    : new SafetyGate.Snapshot(false, SafetyGate.Gear.UNKNOWN,
-                            null, null, null, false, 0);
+            if (parking == null) return new SafetyGate.Snapshot(false, SafetyGate.Gear.UNKNOWN,
+                    null, null, null, false, 0);
+            SafetyGate.Snapshot s = parking.snapshot(nowMs);
+            return new SafetyGate.Snapshot(false, s.gear, s.speedKph, CallSignal.active(audio), s.uxRestricted, s.permissionVerified, s.sampledAtMs);
+        }
+
+        public String climateNow() {
+            Float value = setTemperature;
+            return value == null || readAt == 0 || SystemClock.elapsedRealtime() - readAt >= 5_000 ? null
+                    : String.format(Locale.ROOT, "설정 %.1f°", value);
         }
 
         public void refresh() {
@@ -70,6 +85,7 @@ final class VehicleEnvironmentFactory {
                     }
                     vehicle.getHVAC().getHvacTemperature(zone, TemperatureUnit.CELSIUS, value -> {
                         if (!closed && request == generation) {
+                            setTemperature = value != null && Float.isFinite(value) ? value : null;
                             readout = value != null && Float.isFinite(value)
                                     ? "Front-left set temperature: " + value + " °C (read only)."
                                     : "Temperature value is unavailable.";
@@ -95,7 +111,7 @@ final class VehicleEnvironmentFactory {
             if (readAt != 0 && SystemClock.elapsedRealtime() - readAt >= 5_000)
                 current = "Climate read is stale.";
             return "Pleos Vehicle 2.3.2 · read only. " + current
-                    + "\n" + (parking != null ? parking.description()
+                    + "\n" + (parking != null ? parking.description().replace("; call state: unknown. Live rest is disabled.", ".")
                     : "AAOS state library unavailable on this image. Gear, speed, UX and call state: unknown. Live rest is disabled.");
         }
 

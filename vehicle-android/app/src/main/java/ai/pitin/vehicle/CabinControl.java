@@ -85,7 +85,8 @@ public final class CabinControl {
 
     /**
      * The live rest adapter: SafetyGate stays the judge and runs every check on the car's real values; only its
-     * read-only switch (simulation required) is lifted for the Pleos build that controls the cabin.
+     * read-only switch (simulation required) is lifted for the Pleos builds that rest on real values. It allows a
+     * rest, not a cabin write: writes still need {@link #writeBlocked} and a build that has a cabin actuator.
      */
     public static SafetyGate.Snapshot forLiveRest(SafetyGate.Snapshot live) {
         if (live == null) return null;

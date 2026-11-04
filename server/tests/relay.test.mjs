@@ -203,7 +203,9 @@ test('Host authority cannot hide credentials, paths, queries or fragments behind
   const { rawCall } = await fixture(t);
   for (const host of ['user@localhost', 'localhost/path', 'localhost?ignored', 'localhost#ignored', 'localhost\\ignored']) {
     await t.test(host, async () => {
-      const answer = await rawCall('/api/health', { Host: host });
+      const answer = await rawCall('/api/health', { Host: host }).catch(error => error);
+      // Newer Node versions drop some malformed Host values at the parser: refused just the same.
+      if (answer.code === 'ECONNRESET') return;
       assert.equal(answer.status, 400);
       assert.equal(answer.body.error.code, 'INVALID_HOST');
     });

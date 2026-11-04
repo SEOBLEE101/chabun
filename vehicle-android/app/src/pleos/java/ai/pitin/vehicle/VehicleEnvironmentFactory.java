@@ -42,21 +42,7 @@ final class VehicleEnvironmentFactory {
         public SafetyGate.Snapshot snapshot(long nowMs) {
             if (parking == null) return new SafetyGate.Snapshot(false, SafetyGate.Gear.UNKNOWN, null, null, null, false, 0);
             SafetyGate.Snapshot s = parking.snapshot(nowMs);
-            return new SafetyGate.Snapshot(false, s.gear, s.speedKph, callActive(), s.uxRestricted, s.permissionVerified, s.sampledAtMs);
-        }
-
-        /**
-         * A call or a ringing phone shows in the audio mode; this needs no phone permission. Only MODE_NORMAL means
-         * "no call"; any other or unknown mode is not taken as "no call".
-         */
-        private Boolean callActive() {
-            if (audio == null) return null;
-            int mode = audio.getMode();
-            if (mode == AudioManager.MODE_NORMAL) return false;
-            if (mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION
-                    || mode == AudioManager.MODE_RINGTONE || mode == AudioManager.MODE_CALL_SCREENING
-                    || mode == AudioManager.MODE_CALL_REDIRECT || mode == AudioManager.MODE_COMMUNICATION_REDIRECT) return true;
-            return null;
+            return new SafetyGate.Snapshot(false, s.gear, s.speedKph, CallSignal.active(audio), s.uxRestricted, s.permissionVerified, s.sampledAtMs);
         }
 
         public void refresh() { if (parking != null) parking.refresh(); }

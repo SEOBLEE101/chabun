@@ -92,6 +92,7 @@ final class FinishLayer {
                 ? (a.cabinFinishNote != null ? a.cabinFinishNote : "공조와 시트는 그대로예요.")
                 : "3분의 쉼  ·  소리 끔" + (a.cabinRestNote.isEmpty() ? "" : "  ·  " + a.cabinRestNote));
         if (BuildConfig.LIVE_CONTROL && a.modeText != null) a.modeText.setText("PLEOS · 차 연결 · 주차 중에만 차 안을 맞춰요");
+        else if (BuildConfig.LIVE_REST && a.modeText != null) a.modeText.setText("PLEOS · 읽기 전용 · 주차 중에만 쉬어요");
         if (a.settingsTextSizePx > 0) {
             a.settingsButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, finished ? a.startButton.getTextSize() : a.settingsTextSizePx);
             a.settingsButton.setMinHeight(finished ? a.startButton.getMinHeight() : a.settingsMinHeight);
