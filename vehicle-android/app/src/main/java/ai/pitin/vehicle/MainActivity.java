@@ -73,6 +73,14 @@ public final class MainActivity extends Activity {
     CabinActuator.Session restSession;
     private long lastRestoreTryMs;
     private int restoreTries;
+    /** Submission builds carry no relay address (no server, no local CA): 폰 연결 says so instead of failing. */
+    static final String RELEASE_NO_SERVER = "이 빌드는 연결 서버 없이 동작해서 폰 연결을 쓸 수 없어요.";
+    /** When the running rest was first seen paused (elapsedRealtime), 0 when it is not paused. */
+    private long pausedAtMs;
+    /** Why the rest ended by itself (the car moved, a long pause, leaving the screen), shown with the restore result. */
+    private String restEndReason;
+    /** The reason of the last rest that ended by itself, kept for a restore finished later. */
+    private String finishReason;
     /** 차 안 values of the rest chosen on the phone (함께 쓰는 쉼), or null. */
     CabinSettings sharedCabin;
     /** Name of the rest the phone sent (‘폰에서 고른 쉼’), or null. */
@@ -88,6 +96,7 @@ public final class MainActivity extends Activity {
             if (!foreground) return;
             expireRevocation();
             environment.refresh();
+            endInterruptedRest();
             if (proposal != null && !proposal.isCurrent(System.currentTimeMillis())) {
                 proposal = null; connectionMessage = "수신한 운동 요약의 보관 시간이 만료되어 화면에서 비웠어요.";
             }
@@ -117,6 +126,8 @@ public final class MainActivity extends Activity {
         selectedPreset = prefs.getString("last_preset", "quiet_rest");
         naturalRestMode = prefs.getBoolean("natural_mode", false);
         appReducedMotion = prefs.getBoolean("reduced_motion", false);
+        // The server keeps the last phone rest; remember which one was taken so reopening does not take it again.
+        takenProposalId = prefs.getString("taken_proposal", null);
         restFeedback = "";
         MainScreen.build(this);
         shell = new CarShell(this);
@@ -141,12 +152,22 @@ public final class MainActivity extends Activity {
         GleoActions.handle(this, intent);
     }
     @Override public void onStart() {
+        main.removeCallbacks(endRestAfterLeaving); // back within the moment: the rest stays paused, ‘계속하기’ resumes it
+        main.removeCallbacks(keepReadingWhileRestoring);
         super.onStart(); foreground = true; expireRevocation(); main.post(tick);
         PresetLink.get(this).addListener(restIntake);
         PresetLink.get(this).enterForeground(); // theme reports run while a Pit-In screen is in front
     }
 
     @Override public void onStop() {
+        // Leaving the screen (not a rotation) ends a running or paused rest, so its cabin values do not stay behind.
+        // The car is read again first and the rest ends a moment later, so a just-changed gear is seen before
+        // anything is put back (put back while parked, or kept owed until parked with this screen open again).
+        RestSession.State leaving = session.state();
+        if (!isChangingConfigurations() && (leaving == RestSession.State.ACTIVE || leaving == RestSession.State.PAUSED)) {
+            environment.refresh();
+            main.postDelayed(endRestAfterLeaving, LEAVE_SETTLE_MS);
+        }
         PresetLink.get(this).removeListener(restIntake);
         PresetLink.get(this).exitForeground();
         connectionVerified = false;
@@ -157,6 +178,8 @@ public final class MainActivity extends Activity {
     }
 
     @Override public void onDestroy() {
+        main.removeCallbacks(endRestAfterLeaving); // an unfinished rest's ledger stays stored and is put back next run
+        main.removeCallbacks(keepReadingWhileRestoring);
         epoch++; cancelDeadline(); environment.close(); network.shutdownNow();
         vehicleToken = null; proposal = null; revocation.clear();
         revocationRelay = null; revocationPairingId = null; super.onDestroy();
@@ -211,6 +234,7 @@ public final class MainActivity extends Activity {
         String comfort = p.optString("comfort");
         if (!PresetSyncPolicy.validComfort(comfort)) return;
         takenProposalId = id;
+        getSharedPreferences(CarShell.PREFS, MODE_PRIVATE).edit().putString("taken_proposal", id).apply();
         commitRestChoice(comfort, naturalRestMode);
         sharedRestName = p.optString("name", CarCopy.restName(comfort));
         sharedClimate = sharedClimateOf(p.optJSONObject("vehicle"));
@@ -279,6 +303,9 @@ public final class MainActivity extends Activity {
 
     void createPairing() {
         if (busy || pairingId != null || revocation.pending()) return;
+        if (!BuildConfig.DEBUG && originInput.getText().toString().trim().isEmpty()) {
+            connectionMessage = RELEASE_NO_SERVER; render(); return;
+        }
         try { relay = new RelayClient(originInput.getText().toString(), BuildConfig.DEBUG); }
         catch (Exception e) { connectionMessage = "유효한 HTTPS 중계 서버 주소를 입력해 주세요 (디버그: 로컬 HTTP 허용)."; render(); return; }
         final RelayClient currentRelay = relay;
@@ -478,6 +505,7 @@ public final class MainActivity extends Activity {
     private void applyRestCabin() {
         CabinActuator cabin = environment.cabin();
         cabinFinishNote = null;
+        finishReason = null;
         cabinRestNote = "";
         if (cabin == null && BuildConfig.LIVE_REST) cabinRestNote = "차 안은 직접 맞춰 주세요";
         if (cabin == null || shell == null) return;
@@ -510,32 +538,90 @@ public final class MainActivity extends Activity {
         CabinActuator cabin = environment.cabin();
         CabinActuator.Session ended = restSession;
         restSession = null;
-        if (cabin == null || ended == null) { cabinFinishNote = null; return; }
-        cabinFinishNote = "차 안을 쉬기 전으로 돌리고 있어요.";
+        final String reason = restEndReason;
+        restEndReason = null;
+        finishReason = reason;
+        if (cabin == null || ended == null) { cabinFinishNote = reason; return; }
+        cabinFinishNote = withReason(reason, "차 안을 쉬기 전으로 돌리고 있어요.");
         cabin.endSession(ended, result -> {
             if (!result.restore) return; // the cancelled apply answers first; the restore answer follows
-            cabinFinishNote = result.items.isEmpty() ? null : result.brief();
+            cabinFinishNote = result.items.isEmpty() ? reason : withReason(reason, result.brief());
             CabinActuator.log.accept("rest restore: " + result.summary());
             if (shell != null) shell.readCabinNow();
             render();
         });
     }
 
-    /** Owed restores (blocked by driving or unconfirmed) are tried again while parked, a few times per run. */
+    private static String withReason(String reason, String note) {
+        return reason == null ? note : note == null ? reason : reason + " · " + note;
+    }
+
+    /**
+     * Owed restores (blocked by driving or unconfirmed) are tried again while parked with this screen open:
+     * every 15 s for the first five tries, then every minute, for as long as something is owed.
+     */
     private void retryOwedRestores() {
         CabinActuator cabin = environment.cabin();
-        if (cabin == null || restSession != null || restoreTries >= 5 || !cabin.owesRestore() || cabin.busy()) return;
+        if (cabin == null || restSession != null || !cabin.owesRestore() || cabin.busy()) return;
         RestSession.State st = session.state();
         if (st == RestSession.State.ACTIVE || st == RestSession.State.PAUSED || cabinBlocked() != null) return;
         long now = SystemClock.elapsedRealtime();
-        if (now - lastRestoreTryMs < 15_000) return;
+        if (now - lastRestoreTryMs < (restoreTries < 5 ? 15_000 : 60_000)) return;
         lastRestoreTryMs = now;
         restoreTries++;
         cabin.retryRestores(result -> {
-            if (!result.items.isEmpty()) cabinFinishNote = result.brief();
+            if (!result.items.isEmpty()) cabinFinishNote = withReason(finishReason, result.brief());
             if (shell != null) shell.readCabinNow();
             render();
         });
+    }
+
+    /**
+     * A rest ends by itself when the car moves (a gear other than P, or speed) or a pause is left for
+     * {@link RestInterruption#PAUSE_LIMIT_MS}; render() then puts the cabin back (now, or once parked again).
+     */
+    private void endInterruptedRest() {
+        long now = SystemClock.elapsedRealtime();
+        RestSession.State st = session.state();
+        if (st != RestSession.State.PAUSED) pausedAtMs = 0;
+        else if (pausedAtMs == 0) pausedAtMs = now;
+        RestInterruption.Reason why = RestInterruption.check(st, environment.snapshot(now), pausedAtMs, now);
+        if (why != RestInterruption.Reason.NONE) endRest(now, RestInterruption.note(why));
+    }
+
+    /** How long after leaving the screen the rest ends, so the fresh gear and speed reading has arrived. */
+    static final long LEAVE_SETTLE_MS = 1_500;
+
+    private final Runnable endRestAfterLeaving = () -> {
+        if (foreground) return;
+        long now = SystemClock.elapsedRealtime();
+        boolean moved = RestInterruption.carMoved(environment.snapshot(now));
+        if (endRest(now, moved ? RestInterruption.note(RestInterruption.Reason.MOVED) : "화면을 떠나서 쉼을 마쳤어요")) {
+            render();
+            main.postDelayed(this.keepReadingWhileRestoring, 1_000);
+        }
+    };
+
+    /** While that restore runs off screen, keep the parking values fresh (every write still asks the gate). */
+    private final Runnable keepReadingWhileRestoring = new Runnable() {
+        @Override public void run() {
+            CabinActuator cabin = environment.cabin();
+            if (foreground || cabin == null || !cabin.busy()) return;
+            environment.refresh();
+            main.postDelayed(this, 1_000);
+        }
+    };
+
+    /** Ends a running or paused rest like ‘마치기’, with the reason shown next to the restore result. */
+    private boolean endRest(long now, String reason) {
+        RestSession.State st = session.state();
+        if (st != RestSession.State.ACTIVE && st != RestSession.State.PAUSED) return false;
+        if (!session.finish(now)) return false;
+        restEndReason = reason;
+        pausedAtMs = 0;
+        cancelDeadline();
+        screen = Screen.SESSION;
+        return true;
     }
 
     /** ‘쉬기 마치기’ from 시작 while paused: same as the rest screen's ‘마치기’. */

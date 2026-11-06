@@ -1,6 +1,8 @@
 # 차분(구 Pit-In) vehicle Android prototype
 
 > 개발하면서 남긴 기록입니다. 일부는 지난 시점의 내용이고, 이 저장소에 없는 문서를 가리킬 수 있습니다. 최신 설명은 저장소 맨 위 `README.md`를 보세요.
+>
+> 특히 아래의 "simulated parked pause", "Live rest session: Disabled", "actuation: Absent", "Call state stays unknown"은 2026-10-24 무렵의 상태입니다. 지금은 읽기 전용(`pleosReadOnly`)·`pleos` 빌드가 실제 차 상태(기어·속도·화면 제한·통화 오디오 모드)로 3분 쉬기를 판정하고, `pleos` 빌드는 주차 중에만 공조·시트 열선/통풍·앰비언트 조명을 바꾸고 되돌립니다(Vehicle Control 권한 승인 전, 에뮬레이터에서 확인).
 
 ## 2026-10-28 검수 수정
 
@@ -51,8 +53,8 @@ This native client receives an explicitly shared exercise summary through the ow
 | --- | --- | --- |
 | `demo` | Native pairing, summary polling, manual mode, synthetic vehicle scenarios, Graphite path/point, fixed session controls, three-minute preview, pause/resume and early end | Windows JDK 17 / Gradle 8.7 / AGP 8.5.2 `assembleDemoDebug` succeeds. Pure policy/session tests pass 89 assertions. |
 | `pleosReadOnly` | Optional native client with the same relay flow; AAOS gear, vehicle speed and UX restriction reads; Pleos climate-capability and front-left set-temperature reads | Java sources compile against actual Android 34 / `android.car` jars and the official Vehicle 2.3.2 AAR plus Kotlin 1.9.25. |
-| Live rest session | Disabled by two gates | Call state is unknown, and independently `SafetyGate.preview()` finally denies every `simulation=false` snapshot. Resolving call state alone will not enable live rest. |
-| HVAC/audio/navigation/seat actuation | Absent | No control permissions, no SDK setters and no route or audio commands. `SafetyGate.permitsVehicleWrite()` always returns false. |
+| Live rest session (2026-10-24 기록, 지금은 다름) | Disabled by two gates | Call state is unknown, and independently `SafetyGate.preview()` finally denies every `simulation=false` snapshot. Resolving call state alone will not enable live rest. |
+| HVAC/audio/navigation/seat actuation (2026-10-24 기록, 지금은 다름) | Absent | No control permissions, no SDK setters and no route or audio commands. `SafetyGate.permitsVehicleWrite()` always returns false. |
 | APK build | Demo, read-only and demo instrumentation APKs built on 2026-10-24 | Fresh logs in `../../evidence/run-2026-10-24-astra/vehicle-*-build.log`. Build and runtime are distinct; see the parent integration evidence for install/service observations. |
 
 ## Build the development app
@@ -121,7 +123,7 @@ The test-only `GraphiteInstrumentation` runner drives the actual demo Activity a
 
 The API 34 `CarPropertyValue.getStatus()` check is intentionally retained despite its deprecation annotation: the implementation rejects unavailable/error results. The Windows follow-up exercised the official Pleos AVD's running Car Service; its observations and unsupported climate read are recorded in the parent execution report. This is emulator evidence, not physical sensor validation. There is no inference that a matching car model has a property or that a permission declaration proves a grant.
 
-**Call state stays unknown.** A phone being paired, the vehicle being in P, an audio-focus state, or a missing mobile telephony call is insufficient evidence that the vehicle has no active Bluetooth call. Separately, `SafetyGate.preview()` rejects all non-simulation snapshots. A verified call adapter alone is not an activation switch: any future live gate requires explicit integration review and negative-path tests. This source shows a static preset preview and does not start a live rest session. It also makes no claim of app-market approval or distraction-optimized status.
+**(2026-10-24 기록, 지금은 오디오 모드로 판정) Call state stays unknown.** A phone being paired, the vehicle being in P, an audio-focus state, or a missing mobile telephony call is insufficient evidence that the vehicle has no active Bluetooth call. Separately, `SafetyGate.preview()` rejects all non-simulation snapshots. A verified call adapter alone is not an activation switch: any future live gate requires explicit integration review and negative-path tests. This source shows a static preset preview and does not start a live rest session. It also makes no claim of app-market approval or distraction-optimized status.
 
 ## Repeat the checks
 

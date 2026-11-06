@@ -437,7 +437,7 @@ class PresetEditScreen(shell: PhoneShell, presetId: String?) : Screen(shell) {
             card.addView(chipsRow("바람", listOf("keep" to "그대로", "auto" to "자동", "low" to "약하게", "medium" to "중간", "high" to "세게"), home.fan) { home = home.copy(fan = it) })
             card.addView(chipsRow("전원", listOf("keep" to "그대로", "on" to "켜기"), home.power) { home = home.copy(power = it) })
         }
-        noteBox?.let { n -> n.removeAllViews(); n.addView(ui.info(if (car) "차에서는 아직 앱이 공조와 시트를 바꾸지 않아요. 쉬기 전에 이 값으로 직접 맞춰 주세요." else "집 기기는 귀가 준비를 켤 때만, 고른 한 대에 한 번 요청해요."), LinearLayout.LayoutParams(-1, -2)) }
+        noteBox?.let { n -> n.removeAllViews(); n.addView(ui.info(if (car) "차에서 쉼을 시작하면 이 값으로 차 안을 맞추고, 마치면 쉬기 전으로 돌려요. 차 제어를 쓸 수 없는 차에서는 이 값으로 직접 맞춰 주세요." else "집 기기는 귀가 준비를 켤 때만, 고른 한 대에 한 번 요청해요."), LinearLayout.LayoutParams(-1, -2)) }
     }
     private fun save() {
         try {

@@ -232,7 +232,7 @@ dependencies {
 
 val compileVehiclePolicyChecks = tasks.register<JavaCompile>("compileVehiclePolicyChecks") {
     source(fileTree("src/main/java/ai/pitin/vehicle") {
-        include("SafetyGate.java", "RestSession.java", "PresetSyncPolicy.java", "PresetSyncResponsePolicy.java", "RestGateMessages.java", "GleoActionPolicy.java", "PendingRevocation.java", "AppearancePublisher.java", "AppearanceResponsePolicy.java", "CabinSettings.java", "CabinControl.java", "CabinActuator.java")
+        include("SafetyGate.java", "RestSession.java", "PresetSyncPolicy.java", "PresetSyncResponsePolicy.java", "RestGateMessages.java", "GleoActionPolicy.java", "PendingRevocation.java", "AppearancePublisher.java", "AppearanceResponsePolicy.java", "CabinSettings.java", "CabinControl.java", "CabinActuator.java", "RestInterruption.java")
     })
     source(fileTree("../tests") { include("*.java") })
     classpath = files()
@@ -246,7 +246,8 @@ val policyChecks = mapOf("runSafetyGateChecks" to "SafetyGateTest",
     "runGleoActionChecks" to "GleoActionPolicyTest", "runPendingRevocationChecks" to "PendingRevocationTest",
     "runAppearancePublisherChecks" to "AppearancePublisherTest",
     "runGleoCabinActionChecks" to "GleoCabinActionTest", "runCabinSettingsChecks" to "CabinSettingsTest",
-    "runCabinControlChecks" to "CabinControlTest", "runCabinActuatorChecks" to "CabinActuatorTest").map { (task, entry) ->
+    "runCabinControlChecks" to "CabinControlTest", "runCabinActuatorChecks" to "CabinActuatorTest",
+    "runRestInterruptionChecks" to "RestInterruptionTest").map { (task, entry) ->
     tasks.register<JavaExec>(task) {
         group = "verification"
         description = "Runs pure Java policy assertions on the build JVM, without Android stubs."

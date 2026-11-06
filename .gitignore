@@ -17,7 +17,9 @@ node_modules/
 signing.properties
 *-key.pem
 
-# 로컬 서버 데이터
+# 로컬 서버 데이터와 개발용 인증서
+.setup/
+server/.dev-tls/
 .isolated-preset-sync/
 preferences.json
 preferences.json.lock

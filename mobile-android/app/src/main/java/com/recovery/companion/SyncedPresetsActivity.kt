@@ -72,6 +72,7 @@ class SyncedPresetsActivity : Activity() {
         presetOrigin = PresetSyncPolicy.fromRelayOrigin(relayBase)
         client = PresetSyncClient(presetOrigin)
         sendRest = intent?.getStringExtra(EXTRA_SEND_REST)?.let { runCatching { JSONObject(it) }.getOrNull() }
+        if (!debugBuild()) note = "이 빌드는 연결 서버 없이 동작해서 취향 함께 쓰기와 차에 보내기를 쓸 수 없어요."
         val prefs = getSharedPreferences("pitin_preset_sync_session", MODE_PRIVATE)
         if ( prefs.getString("origin", null) == presetOrigin) {
             token = prefs.getString("token", null)
@@ -323,8 +324,7 @@ class SyncedPresetsActivity : Activity() {
             }
             selected?.let { p ->
                 theme.text(selection, dialogs.values(p), 15f)
-                theme.text(selection, "쉼 값만 함께 봐요. 차의 공조·시트와 집 기기는 바꾸지 않아요.", 14f, color = theme.muted)
-                button(selection, "이 쉼을 차에 전하기", writable(), primary = pending == null) { send("propose_vehicle", json("id" to p.getString("id"))) }
+                theme.text(selection, "여기서 고르기만 해서는 차의 공조·시트와 집 기기가 바뀌지 않아요. 차에 보내려면 '취향'에서 쉼을 고르고 '차에 이 쉼 보내기'를 눌러요.", 14f, color = theme.muted)
 
                 val feelings = theme.disclosure(selection, "오늘은 어떤가요?", feelingsExpanded) { feelingsExpanded = it }
                 theme.text(feelings, "내가 직접 고르는 느낌이에요. 건강 상태를 진단하지 않아요.", 14f, color = theme.muted)

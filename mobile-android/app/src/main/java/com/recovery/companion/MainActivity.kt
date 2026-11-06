@@ -459,7 +459,11 @@ class MainActivity : ComponentActivity(), PitApp {
         else -> "other"
     }
     private fun isDebugBuild() = applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
-    private fun validateBase(raw: String): String = SharePolicy.validateBase(raw, isDebugBuild())
+    private fun validateBase(raw: String): String {
+        // Submission builds carry no HTTPS relay address (no server, no local CA).
+        if (!isDebugBuild() && !raw.trim().startsWith("https://")) throw IllegalArgumentException(RELEASE_NO_SERVER)
+        return SharePolicy.validateBase(raw, isDebugBuild())
+    }
 
     private fun task(block: suspend () -> Unit) {
         if (busy) return
@@ -509,3 +513,6 @@ class MainActivity : ComponentActivity(), PitApp {
         }
     }
 }
+
+/** Shown when a submission build is asked to pair: it has no relay server address. */
+internal const val RELEASE_NO_SERVER = "이 빌드는 연결 서버 없이 동작해서 차와 연결할 수 없어요."

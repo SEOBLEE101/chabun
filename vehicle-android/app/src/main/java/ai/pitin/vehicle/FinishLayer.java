@@ -35,7 +35,7 @@ final class FinishLayer {
             CarKit.margins(chip, 0, 0, k.px(wide ? 16 : 8), 0);
         }
         a.feedbackPanel.setVisibility(View.GONE);
-        TextView note = k.text(a.finishPanel, "남기지 않아도 괜찮아요. 폰의 ‘나’에서도 볼 수 있어요.", wide ? 22 : 15, 0xff96979a, CarKit.W400);
+        TextView note = k.text(a.finishPanel, "남기지 않아도 괜찮아요. 이 차에만 마지막 한 가지를 남겨요.", wide ? 22 : 15, 0xff96979a, CarKit.W400);
         CarKit.margins(note, 0, k.px(wide ? 20 : 10), 0, 0);
     }
 

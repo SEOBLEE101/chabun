@@ -126,7 +126,7 @@ abstract class CabinActuator implements AutoCloseable {
     static final class Entry {
         final CabinControl.Item item;
         final boolean driver;
-        final int baseline;
+        int baseline;
         int lastApplied;
 
         Entry(CabinControl.Item item, boolean driver, int baseline, int lastApplied) {
@@ -454,8 +454,23 @@ abstract class CabinActuator implements AutoCloseable {
         catch (RuntimeException refused) { once.value(null); }
     }
 
+    /**
+     * Keeps at most {@link #MAX_SESSIONS} rests. The oldest is folded into the next one instead of being dropped, so
+     * its "before" values still come back: an item the next rest also changed takes the older value as its baseline
+     * when the chain is unbroken (the next rest started from what the older one set); otherwise the hand-made value
+     * in between wins, as a restore would decide.
+     */
     private void trimSessions() {
-        while (sessions.size() > MAX_SESSIONS) sessions.remove(0);
+        while (sessions.size() > MAX_SESSIONS) {
+            Session oldest = sessions.remove(0);
+            Session next = sessions.get(0);
+            for (Map.Entry<String, Entry> item : oldest.entries.entrySet()) {
+                Entry newer = next.entries.get(item.getKey());
+                Entry older = item.getValue();
+                if (newer == null) next.entries.put(item.getKey(), older);
+                else if (newer.baseline == older.lastApplied) newer.baseline = older.baseline;
+            }
+        }
     }
 
     /** "id,ended,item,driver,baseline,lastApplied" per entry, ';' between entries. */
@@ -475,22 +490,22 @@ abstract class CabinActuator implements AutoCloseable {
         String value = store.load();
         if (value == null || !value.startsWith("v1")) return;
         Map<Long, Session> byId = new LinkedHashMap<>();
-        try {
-            for (String part : value.substring(2).split(";")) {
-                if (part.isEmpty()) continue;
-                String[] f = part.split(",");
-                if (f.length != 6) return;
+        for (String part : value.substring(2).split(";")) {
+            if (part.isEmpty()) continue;
+            String[] f = part.split(",");
+            if (f.length != 6) continue; // one bad entry is skipped; the others still come back
+            try {
                 long id = Long.parseLong(f[0]);
-                Session s = byId.computeIfAbsent(id, Session::new);
-                s.ended = true;
-                s.endedAt = clock.now();
                 CabinControl.Item item = CabinControl.Item.valueOf(f[2]);
                 boolean driver = "1".equals(f[3]);
                 Entry e = new Entry(item, driver, Integer.parseInt(f[4]), Integer.parseInt(f[5]));
+                Session s = byId.computeIfAbsent(id, Session::new);
+                s.ended = true;
+                s.endedAt = clock.now();
                 s.entries.put(new CabinControl.Step(item, driver, 0).key(), e);
                 nextSession = Math.max(nextSession, id + 1);
-            }
-        } catch (RuntimeException malformed) { return; }
+            } catch (RuntimeException malformed) { /* skipped */ }
+        }
         sessions.addAll(byId.values());
         trimSessions();
     }

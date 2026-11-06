@@ -202,7 +202,7 @@ public final class CabinControlTest {
         check(CabinControl.outcome(0, 0, 0, 0, 0, 0).equals("바꿀 값이 없어요"), "nothing");
         check(CabinControl.outcome(1, 0, 0, 1, 1, 2).equals("1개 맞췄어요 · 1개는 이 차에서 안 돼요 · 1개는 지금 값을 못 읽어 그대로 뒀어요 · 2개는 보내지 않았어요"), "every kind");
         check(CabinControl.restoreOutcome(2, 0, 0).equals("차 안을 쉬기 전으로 돌렸어요."), "restored");
-        check(CabinControl.restoreOutcome(1, 1, 1).equals("1개는 쉬기 전으로 돌렸어요 · 1개는 손으로 바꾼 값이라 그대로 뒀어요 · 1개는 아직 못 돌렸어요 · 주차 중에 다시 돌릴게요."), "mixed restore");
+        check(CabinControl.restoreOutcome(1, 1, 1).equals("1개는 쉬기 전으로 돌렸어요 · 1개는 손으로 바꾼 값이라 그대로 뒀어요 · 1개는 아직 못 돌렸어요 · 주차하고 차분을 열면 다시 돌릴게요."), "mixed restore");
         System.out.println("CabinControlTest: " + assertions + " assertions passed");
     }
 }

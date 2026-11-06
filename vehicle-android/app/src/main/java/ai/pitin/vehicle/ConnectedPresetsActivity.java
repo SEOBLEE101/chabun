@@ -67,12 +67,19 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         catch (Exception e) { throw new IllegalArgumentException(e); }
         return value;
     }
+    /** A submission build opened without a relay address: there is no server to claim a number on. */
+    private boolean noServer() {
+        String origin = getIntent() == null ? null : getIntent().getStringExtra("relayOrigin");
+        return !BuildConfig.DEBUG && (origin == null || origin.trim().isEmpty());
+    }
+
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         link = PresetLink.get(this); client = link.client; link.addListener(this);
         if (getIntent() != null) link.useRelayOrigin(getIntent().getStringExtra("relayOrigin"));
         if (link.approved) message = "승인된 연결 · 공유 선호를 다시 읽는 중";
         else if (link.token != null) message = "비교 번호 " + link.comparison + " · 웹에서 일치 확인 후 승인해 주세요.";
+        else if (noServer()) message = "이 빌드는 연결 서버 없이 동작해서 취향 함께 쓰기를 쓸 수 없어요.";
         SharedPreferences prefs = getSharedPreferences(CarShell.PREFS, MODE_PRIVATE);
         t = CarTheme.of(prefs.getString("car_mood", CarTheme.GRAPHITE_ID));
         k = new CarKit(this, t, CarKit.unitFor(this), prefs.getBoolean("reduced_motion", false));
@@ -387,7 +394,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         status.setText(message + (uncertain == null ? "" : "\n결과 미확인 요청이 있어 새 변경은 잠겼어요.")
                 + (state != null ? "\n마지막 확인 " + Math.max(0, (SystemClock.elapsedRealtime() - lastObservedAtMs) / 1000) + "초 전"
                 + (!policy.fresh ? " · 다시 확인하기 전에는 변경할 수 없어요." : " · 실제 기기 적용 확인은 아니에요.") : ""));
-        boolean canClaim = link.token == null && !revoking;
+        boolean canClaim = link.token == null && !revoking && !noServer();
         CarKit.enable(claim, canClaim && !busy); code.setEnabled(canClaim && !busy);
         claim.setVisibility(canClaim ? View.VISIBLE : View.GONE); code.setVisibility(canClaim ? View.VISIBLE : View.GONE);
         disconnect.setVisibility(link.token != null || revoking ? View.VISIBLE : View.GONE);

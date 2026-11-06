@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 
 /**
- * 차 안 맞추기 실행·되돌리기 (audit 2026-10-29): the eleven fake-SDK cases from the GPT Pro probe, turned around so
+ * 차 안 맞추기 실행·되돌리기 (audit 2026-10-29): eleven fake-SDK cases from an outside code review, turned around so
  * they pass only with the fixed behaviour, plus deadline, blocked restore, persistence and one-answer checks.
  * Virtual time, a fake car; not an Android, Pleos or real-vehicle test.
  */
@@ -232,6 +232,36 @@ public final class CabinActuatorTest {
         clock.advanceTo(6000);
         check(a15.status(0) == CabinControl.Status.UNKNOWN && c15.owesRestore() == false && c15.owedItems() == 0
                 && s15.entries.size() == 1, "unread result owned by the active rest");
+
+        // 17. More owed rests than the ledger keeps: the oldest is folded in, so the very first value still comes back.
+        FakeCar c17 = car(0); Answers a17 = new Answers(clock);
+        for (int level = 1; level <= CabinActuator.MAX_SESSIONS + 1; level++) {
+            CabinActuator.Session s = c17.beginSession();
+            List<CabinControl.Step> steps = new ArrayList<>();
+            steps.add(new CabinControl.Step(CabinControl.Item.SEAT_HEAT, true, level));
+            if (level == 1) steps.add(VENT); // only the oldest rest changed ventilation
+            c17.parked = true;
+            c17.apply(steps, s, 0, a17); clock.advance(6000);
+            c17.parked = false; // driving: this rest's restore is blocked and stays owed
+            c17.endSession(s, a17); clock.advance(6000);
+        }
+        check(c17.get(HEAT) == CabinActuator.MAX_SESSIONS + 1 && c17.get(VENT) == 2 && c17.unsafeWrites == 0,
+                "every rest applied, none restored while driving: " + c17.writes);
+        c17.parked = true;
+        c17.retryRestores(a17); clock.advance(60000);
+        check(c17.get(HEAT) == 0 && c17.get(VENT) == 0 && !c17.owesRestore(),
+                "folded ledger restores the first values: heat " + c17.get(HEAT) + ", vent " + c17.get(VENT) + " " + c17.writes);
+
+        // 18. One damaged stored entry is skipped; the others still come back after a restart.
+        clock = new Clock();
+        MemoryStore damaged = new MemoryStore();
+        damaged.value = "v1;1,1,SEAT_HEAT,1,0,2;broken;2,1,NOT_AN_ITEM,1,0,3;3,1,SEAT_VENT,1,0,2";
+        Map<String, Integer> now18 = new HashMap<>();
+        now18.put(HEAT.key(), 2); now18.put(VENT.key(), 2);
+        FakeCar c18 = new FakeCar(clock, damaged, now18);
+        check(c18.owesRestore() && c18.owedItems() == 2, "two good entries loaded: " + c18.owedItems());
+        c18.retryRestores(null); clock.advance(30000);
+        check(c18.get(HEAT) == 0 && c18.get(VENT) == 0 && !c18.owesRestore(), "good entries restored");
 
         // 16. Summaries.
         check(a.last().summary().equals("1개 맞췄어요 · 1개는 보내지 않았어요"), "apply words: " + a.last().summary());

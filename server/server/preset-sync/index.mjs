@@ -5,6 +5,8 @@ import { execFileSync } from 'node:child_process';
 import { createPresetSyncService } from './service.mjs';
 import { recoverStalePreferenceLock } from './store.mjs';
 
+const MISSING_TLS='Set PITIN_PRESET_TLS_CERT and PITIN_PRESET_TLS_KEY to PEM files (npm run dev-tls makes a development pair).';
+
 export function createLocalPresetSyncService(env=process.env) {
   const taskRoot=fileURLToPath(new URL('../../../',import.meta.url));
   const directory=resolve(taskRoot,'.setup/pitin-preset-sync');
@@ -30,8 +32,9 @@ export function createLocalPresetSyncService(env=process.env) {
       }
     `],{env:{...process.env,PITIN_PRESET_PRIVATE_DIRECTORY:directory},windowsHide:true,stdio:'pipe'});
   } else chmodSync(directory,0o700);
-  const cert=readFileSync(env.PITIN_PRESET_TLS_CERT??resolve(taskRoot,'.setup/pitin-local-tls-20261024/server-cert.pem'));
-  const key=readFileSync(env.PITIN_PRESET_TLS_KEY??resolve(taskRoot,'.setup/pitin-local-tls-20261024/server-key.pem'));
+  if(!env.PITIN_PRESET_TLS_CERT||!env.PITIN_PRESET_TLS_KEY) throw new Error(MISSING_TLS);
+  const cert=readFileSync(env.PITIN_PRESET_TLS_CERT);
+  const key=readFileSync(env.PITIN_PRESET_TLS_KEY);
   return createPresetSyncService({storeFile:resolve(directory,'preferences.json'),tls:{cert,key,minVersion:'TLSv1.2'}});
 }
 
@@ -52,5 +55,5 @@ if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).
     }
     console.log(`Pit-In preset sync: http://127.0.0.1:${httpPort} / HTTPS native port ${tlsPort}. Synthetic preferences only.`);
     for(const signal of ['SIGINT','SIGTERM'])process.once(signal,async()=>{await app.close();});
-  } catch {console.error('Preset sync startup refused. Check TLS, private storage integrity, ACL, and writer lock.');process.exitCode=1;if(app)await app.close();}
+  } catch(error) {console.error(error?.message===MISSING_TLS?MISSING_TLS:'Preset sync startup refused. Check TLS, private storage integrity, ACL, and writer lock.');process.exitCode=1;if(app)await app.close();}
 }

@@ -482,7 +482,7 @@ public final class CabinControl {
         StringBuilder b = new StringBuilder();
         part(b, restored, "개는 쉬기 전으로 돌렸어요");
         part(b, kept, "개는 손으로 바꾼 값이라 그대로 뒀어요");
-        part(b, owed, "개는 아직 못 돌렸어요 · 주차 중에 다시 돌릴게요");
+        part(b, owed, "개는 아직 못 돌렸어요 · 주차하고 차분을 열면 다시 돌릴게요");
         return b + ".";
     }
 
@@ -496,7 +496,7 @@ public final class CabinControl {
 
     /** One short line after a rest's restore. */
     public static String briefRestore(int kept, int owed) {
-        if (owed > 0) return "차 안 " + owed + "개는 아직 못 돌렸어요 · 주차 중에 다시 돌릴게요.";
+        if (owed > 0) return "차 안 " + owed + "개는 아직 못 돌렸어요 · 주차하고 차분을 열면 다시 돌릴게요.";
         if (kept > 0) return "손으로 바꾼 " + kept + "개 말고는 쉬기 전으로 돌렸어요.";
         return "차 안을 쉬기 전으로 돌렸어요.";
     }
