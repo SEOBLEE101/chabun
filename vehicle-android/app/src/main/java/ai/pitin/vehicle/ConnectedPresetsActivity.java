@@ -243,10 +243,13 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         ask("서버 해제 확인이 남아 있어요. 이 화면을 닫으면 현재 연결로 해제를 다시 요청할 수 없어요.",
                 "여기서 확인", "확인 없이 나가기", this::finish);
     }
+    /** The phone proposal this screen last showed; the start screen treats it as seen, whichever rest is chosen here. */
+    private String seenProposalId;
     private void prepareRest() {
         if (!policy.canWrite() || busy || preparationSnapshot == null || revocation.pending()
                 || !PresetSyncPolicy.validComfort(preparationSnapshot.optString("comfort"))) return;
-        setResult(RESULT_OK, new Intent().putExtra("presetSnapshot", preparationSnapshot.toString())); finish();
+        setResult(RESULT_OK, new Intent().putExtra("presetSnapshot", preparationSnapshot.toString())
+                .putExtra("seenProposalId", seenProposalId)); finish();
     }
     private void claim() {
         String value = code.getText().toString();
@@ -429,6 +432,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         JSONObject devices = state.optJSONObject("devices");
         JSONObject vehicle = devices == null ? null : devices.optJSONObject("vehicle");
         JSONObject proposal = vehicle == null ? null : vehicle.optJSONObject("proposal");
+        seenProposalId = proposal == null ? null : proposal.optString("id", null);
 
         if (proposal != null && proposal.has("cabin")) {
             // A rest sent from the phone with its 차 안 설정: prepared on 시작, started and applied only by a press there.
@@ -442,7 +446,8 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
             final JSONObject phoneRest = proposal;
             TextView take = k.primary(arrived, "이 쉼으로 준비하기", () -> {
                 if (busy || revocation.pending()) return;
-                setResult(RESULT_OK, new Intent().putExtra("presetSnapshot", phoneRest.toString())); finish();
+                setResult(RESULT_OK, new Intent().putExtra("presetSnapshot", phoneRest.toString())
+                        .putExtra("seenProposalId", seenProposalId)); finish();
             });
             take.setLayoutParams(withTop(CarKit.lp(-2, -2), 24));
             writes.add(take);

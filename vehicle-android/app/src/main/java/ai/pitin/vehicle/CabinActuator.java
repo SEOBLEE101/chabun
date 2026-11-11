@@ -339,35 +339,48 @@ abstract class CabinActuator implements AutoCloseable {
             if (stopped(job)) return;
             if (target == null || target == REFUSED) { done(job, null, null, CabinControl.Status.FAILED, "차가 지원 범위를 알려 주지 않았어요"); return; }
             if (target == UNSUPPORTED) { done(job, null, null, CabinControl.Status.UNSUPPORTED, "이 차에서 안 돼요"); return; }
-            call(o -> read(s, o), current -> {
-                if (stopped(job)) return;
-                if (current != null && same(s, target, current)) { done(job, target, current, CabinControl.Status.UNCHANGED, null); return; }
-                if (job.session != null && current == null) {
-                    done(job, target, null, CabinControl.Status.UNREADABLE, "지금 값을 읽지 못해 바꾸지 않았어요");
+            readThenWrite(job, s, target, false);
+        });
+    }
+
+    /**
+     * Reads the value the car has now, then sends the new one. A rest only changes what it can put back, so an
+     * unreadable value is left alone; but a car may need a moment before it can say (the temperature right after
+     * the climate was switched on), so it is asked once more after {@link #RECHECK_MS} first.
+     */
+    private void readThenWrite(Job job, CabinControl.Step s, int target, boolean second) {
+        call(o -> read(s, o), current -> {
+            if (stopped(job)) return;
+            if (current != null && same(s, target, current)) { done(job, target, current, CabinControl.Status.UNCHANGED, null); return; }
+            if (job.session != null && current == null) {
+                if (!second) {
+                    clock.post(() -> { if (!stopped(job)) readThenWrite(job, s, target, true); }, RECHECK_MS);
                     return;
                 }
-                String blocked = gate.blocked();
-                if (blocked != null) { job.cancel(blocked); done(job, target, current, CabinControl.Status.SKIPPED, blocked); return; }
-                Entry entry = null;
-                boolean created = false;
-                if (job.session != null) {
-                    entry = job.session.entries.get(s.key());
-                    if (entry == null) {
-                        entry = new Entry(s.item, s.driver, current, target);
-                        job.session.entries.put(s.key(), entry);
-                        if (!sessions.contains(job.session)) sessions.add(job.session);
-                        trimSessions();
-                        created = true;
-                    } else entry.lastApplied = target;
-                    persist();
-                }
-                job.sent = true;
-                final Entry owned = entry;
-                final boolean fresh = created;
-                call(o -> write(s, target, o), ack -> {
-                    log.accept(s.key() + " write " + target + " -> " + (ack == null ? "no answer" : ack == REFUSED ? "refused" : "accepted"));
-                    verifyApply(job, s, target, current, ack, owned, fresh, false);
-                });
+                done(job, target, null, CabinControl.Status.UNREADABLE, "지금 값을 읽지 못해 바꾸지 않았어요");
+                return;
+            }
+            String blocked = gate.blocked();
+            if (blocked != null) { job.cancel(blocked); done(job, target, current, CabinControl.Status.SKIPPED, blocked); return; }
+            Entry entry = null;
+            boolean created = false;
+            if (job.session != null) {
+                entry = job.session.entries.get(s.key());
+                if (entry == null) {
+                    entry = new Entry(s.item, s.driver, current, target);
+                    job.session.entries.put(s.key(), entry);
+                    if (!sessions.contains(job.session)) sessions.add(job.session);
+                    trimSessions();
+                    created = true;
+                } else entry.lastApplied = target;
+                persist();
+            }
+            job.sent = true;
+            final Entry owned = entry;
+            final boolean fresh = created;
+            call(o -> write(s, target, o), ack -> {
+                log.accept(s.key() + " write " + target + " -> " + (ack == null ? "no answer" : ack == REFUSED ? "refused" : "accepted"));
+                verifyApply(job, s, target, current, ack, owned, fresh, false);
             });
         });
     }

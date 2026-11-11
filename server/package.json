@@ -1,9 +1,9 @@
 {
-  "name": "pit-in-recovery-prototype",
+  "name": "chabun-connection-server",
   "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "Pit-In Windows/Android v0.4: private HTTPS summary relay and synthetic comfort/arrival prototype",
+  "description": "Chabun local connection server: workout-summary relay (HTTPS 9443) and shared rest presets (HTTP 8792 / HTTPS 9447). Local development only.",
   "engines": { "node": ">=20" },
   "scripts": {
     "start": "node server/index.mjs",

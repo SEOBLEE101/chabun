@@ -1,6 +1,8 @@
 # 차분(구 Pit-In) Android phone companion
 
 > 개발하면서 남긴 기록입니다. 일부는 지난 시점의 내용이고, 이 저장소에 없는 문서를 가리킬 수 있습니다. 최신 설명은 저장소 맨 위 `README.md`를 보세요.
+>
+> 특히 지금과 다른 곳: 운동 요약은 운동을 마친 지 120분 안이면 보낼 수 있습니다(본문의 30분은 옛 기준). 심박 권한은 쓰지 않고 매니페스트의 건강 권한은 운동 기록 읽기(`READ_EXERCISE`) 하나입니다. 본문의 `PresetsActivity`는 지금 없습니다.
 
 This is a native development prototype. Build and device evidence are recorded separately under `../../evidence/run-2026-10-24-astra/`; source availability alone does not establish either. It reads Health Connect on an Android phone and sends only the allowlisted summary in `../../docs/CONTRACT.md` to our own relay. Do not install this module as the Pleos vehicle app.
 

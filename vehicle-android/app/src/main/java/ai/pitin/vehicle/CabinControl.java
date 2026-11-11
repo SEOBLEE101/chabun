@@ -67,9 +67,19 @@ public final class CabinControl {
 
     /**
      * Null when the car may be changed now, otherwise the reason in on-screen words.
-     * Writes need the same parked facts as a rest (fresh state, gear P, 0 km/h, verified access); a phone call
-     * or a UX restriction does not stop a climate change while parked.
+     * Writes need the same parked facts as a rest (fresh state, gear P, 0 km/h, verified access) and a known,
+     * unrestricted UX state; a phone call does not stop a change while parked.
      */
+    /**
+     * True when the car values are missing or older than the freshness window: the refusal says nothing about
+     * parking yet, and a new reading may allow the write (an app that just came to the front).
+     */
+    public static boolean stale(SafetyGate.Snapshot state, long nowMs) {
+        if (state == null) return true;
+        long age = nowMs - state.sampledAtMs;
+        return age < 0 || age >= SafetyGate.MAX_STATE_AGE_MS;
+    }
+
     public static String writeBlocked(SafetyGate.Snapshot state, long nowMs) {
         if (state == null) return "차 상태를 읽지 못했어요";
         long age = nowMs - state.sampledAtMs;

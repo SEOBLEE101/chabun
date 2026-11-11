@@ -29,6 +29,8 @@ data class SentSummary(val workoutType: String, val minutes: Int, val presetName
 /** 화면이 읽는 앱 상태와 행동. 계약 로직은 MainActivity에 그대로 있다. */
 interface PitApp {
     val debug: Boolean
+    /** This build has no connection server (submission builds): pairing and sending cannot work, so screens say so up front. */
+    val serverless: Boolean
     val busy: Boolean
     val pairing: PairingSession?
     val pairingConfirmed: Boolean

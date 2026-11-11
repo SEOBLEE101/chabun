@@ -131,7 +131,7 @@ class TodayScreen(shell: PhoneShell) : Screen(shell) {
             store.beginRest()
             shell.push(ShareScreen(shell))
         })
-        card.addView(ui.caption("선호만 차로 전해요. 쉬기 시작은 차에서 직접 눌러요.").apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = -ui.dp(6) })
+        card.addView(ui.caption("고른 것만 차로 전해요. 쉬기 시작은 차에서 직접 눌러요.").apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = -ui.dp(6) })
         c.addView(card)
 
         val rows = mutableListOf<View>()
@@ -142,10 +142,11 @@ class TodayScreen(shell: PhoneShell) : Screen(shell) {
         c.addView(ui.list(*rows.toTypedArray()), LinearLayout.LayoutParams(-1, -2).apply { topMargin = -ui.dp(4) })
 
         c.addView(ui.vstack(12f).apply {
-            addView(ui.sectionHead("지난 쉼", "모두 보기", { shell.showTab(Tab.ME, true) }))
+            // 폰은 아직 차에서 마친 쉼을 받지 않는다. 있는 것처럼 보이지 않게 준비 중이라고 밝힌다.
+            addView(ui.sectionHead("지난 쉼"))
             addView(ui.flatCard(18f, 16f, 2f).apply {
                 addView(ui.rowTitle("아직 지난 쉼이 없어요", 15f))
-                addView(ui.rowSub("차에서 마친 쉼과 소감이 곧 여기에 모여요"))
+                addView(ui.rowSub("차에서 마친 쉼을 모아 보는 기능은 준비 중이에요"))
             })
         })
     }
@@ -344,11 +345,11 @@ class MeScreen(shell: PhoneShell) : Screen(shell) {
         val prefs = PitPrefs(ctx)
         c.addView(ui.vstack(8f).apply {
             addView(ui.title("나"))
-            addView(ui.body("쉬었던 순간과 이 폰의 설정을 모아 뒀어요."))
+            addView(ui.body("이 폰의 설정을 모아 뒀어요."))
         })
         c.addView(ui.vstack(6f).apply {
             addView(ui.h2("최근 쉼"))
-            addView(ui.list(ui.row(null, "아직 지난 쉼이 없어요", "차에서 마친 쉼과 소감이 곧 여기에 모여요", chevron = false, titleWeight = 500, endView = ui.pill("곧", "muted"))))
+            addView(ui.list(ui.row(null, "아직 지난 쉼이 없어요", "차에서 마친 쉼을 모아 보는 기능은 준비 중이에요", chevron = false, titleWeight = 500, endView = ui.pill("준비 중", "muted"))))
         })
         c.addView(ui.vstack(6f).apply {
             addView(ui.h2("이 폰"))

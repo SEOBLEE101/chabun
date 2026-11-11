@@ -211,6 +211,11 @@ public final class MainActivity extends Activity {
             sharedClimate = sharedClimateOf(snapshot.getJSONObject("vehicle"));
             sharedCabin = cabinOf(snapshot.optJSONObject("cabin"));
             sharedRestName = snapshot.getString("name");
+            String seen = data.getStringExtra("seenProposalId");
+            if (seen != null && seen.startsWith("phone-")) {
+                takenProposalId = seen;
+                getSharedPreferences(CarShell.PREFS, MODE_PRIVATE).edit().putString("taken_proposal", seen).apply();
+            }
             localConfirmation = false; consentBox.setChecked(false); openPreparation();
         } catch (Exception invalid) { /* Untrusted activity data never changes the rest session. */ }
     }
@@ -498,6 +503,12 @@ public final class MainActivity extends Activity {
         return CabinControl.writeBlocked(environment.snapshot(now), now);
     }
 
+    /** True while the car values are too old to judge parking (read again each second in front, or by refresh()). */
+    boolean cabinStateStale() {
+        long now = SystemClock.elapsedRealtime();
+        return CabinControl.stale(environment.snapshot(now), now);
+    }
+
     /**
      * The person pressed ‘3분 쉬기’: set the chosen rest's climate and 차 안 설정 (seat heat/ventilation, light),
      * remembering what the car had so the end of the rest can put it back.
@@ -513,7 +524,9 @@ public final class MainActivity extends Activity {
         if (plan.isEmpty()) return;
         String blocked = cabinBlocked();
         if (blocked != null) { cabinRestNote = "차 안은 그대로예요 · " + blocked; return; }
-        // Each rest owns its own ledger; an earlier rest's restore stays queued ahead of this one.
+        // Each rest owns its own ledger; an earlier rest's restore stays queued ahead of this one. A rest whose end
+        // was not handled yet (completed within this very pass) is ended first, so its ledger is never orphaned.
+        if (restSession != null) cabin.endSession(restSession, null);
         restSession = cabin.beginSession();
         cabinRestNote = "차 안을 맞추는 중";
         cabin.apply(plan, restSession, 0, result -> {
@@ -682,14 +695,23 @@ public final class MainActivity extends Activity {
 
     void render() {
         RestSession.State restState = session.state();
+        noteRestState(restState);
+        MainScreen.render(this, decision());
+        // MainScreen.render runs the session's own check, which can be the moment the three minutes complete.
+        // That end is handled in this pass, not a tick later: ‘다시 3분 쉬기’ must never start over an unended rest.
+        RestSession.State after = session.state();
+        if (after != restState) noteRestState(after);
+        if (shell != null) shell.render();
+    }
+
+    /** The end of a rest (finished or ended) is seen once: the cabin goes back to what it was. */
+    private void noteRestState(RestSession.State restState) {
         if ((restState == RestSession.State.COMPLETE || restState == RestSession.State.ENDED)
                 && (lastRestState == RestSession.State.ACTIVE || lastRestState == RestSession.State.PAUSED)) {
             lastRestState = restState;
             restoreRestCabin();
         }
         lastRestState = restState;
-        MainScreen.render(this, decision());
-        if (shell != null) shell.render();
     }
 
     private <T> void request(Callable<T> task, Consumer<T> success) {

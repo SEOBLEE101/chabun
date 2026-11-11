@@ -157,10 +157,13 @@ final class HomePage extends CarPage {
         line2.setText(paused ? "이어서 쉬려면 직접 눌러 주세요." : a.naturalRestMode ? "박자 안내 없이 편안하게 쉬어가세요." : "안내는 참고만 해도 좋아요.");
         restName.setText(a.sharedRestName != null ? a.sharedRestName : CarCopy.restName(a.selectedPreset));
         String sub = CarCopy.restValues(a.selectedPreset);
-        if (a.environment.cabin() != null && !a.selectedPreset.isEmpty()) {
-            // The plan the start will send, in the same words the result uses.
+        CabinActuator cabin = a.environment.cabin();
+        if (cabin != null && !a.selectedPreset.isEmpty()) {
+            // The plan the start will send, in the same words the result uses. While the last rest is still being
+            // put back (or owes it), that comes first; once it is done the card shows the next start again.
             String plan = CabinControl.describe(a.restPlan());
-            sub = a.cabinFinishNote != null ? a.cabinFinishNote.replace(".", "")
+            boolean puttingBack = a.cabinFinishNote != null && (cabin.owesRestore() || cabin.busy());
+            sub = puttingBack ? a.cabinFinishNote.replace(".", "")
                     : plan.isEmpty() ? "시작해도 차 안은 그대로예요" : "시작하면 " + plan;
         } else if (BuildConfig.LIVE_REST && !a.selectedPreset.isEmpty()) {
             String plan = CabinControl.describe(a.restPlan());

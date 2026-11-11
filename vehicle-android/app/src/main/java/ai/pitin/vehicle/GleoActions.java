@@ -108,6 +108,14 @@ final class GleoActions {
      * whichever is first. The answer names what the car now has (fitted to its range), not what was asked.
      */
     private static void changeCabin(MainActivity activity, String action, List<CabinControl.Step> steps, long deadline, String mode) {
+        changeCabin(activity, action, steps, deadline, mode, FRESH_WAIT_STEPS);
+    }
+
+    /** A request that brings the app to the front waits this long for a new reading of the car (well inside the deadline). */
+    private static final int FRESH_WAIT_STEPS = 8;
+    private static final long FRESH_WAIT_STEP_MS = 250;
+
+    private static void changeCabin(MainActivity activity, String action, List<CabinControl.Step> steps, long deadline, String mode, int waits) {
         CabinActuator cabin = activity.environment.cabin();
         MainActivity.Screen at = activity.screen;
         if (cabin == null) {
@@ -118,6 +126,23 @@ final class GleoActions {
             if (activity.shell != null) activity.shell.showPill("Gleo · 바꿀 값이 없어요 · 이 쉼은 차 안을 바꾸지 않아요", at);
             sendResponse(activity, action, "fail", "The selected rest and the saved cabin settings change nothing. Nothing was changed.", mode);
             return;
+        }
+        // The app may have just come to the front: its car values are older than the freshness window until the next
+        // reading, which says nothing about parking. Read now and judge again shortly instead of refusing a parked car.
+        if (activity.cabinStateStale()) {
+            activity.environment.refresh();
+            if (activity.cabinStateStale() && waits > 0) {
+                activity.main.postDelayed(() -> {
+                    if (activity.isDestroyed()) return;
+                    RestSession.State now = activity.session.state();
+                    if (now == RestSession.State.ACTIVE || now == RestSession.State.PAUSED) {
+                        sendResponse(activity, action, "fail", "A rest session is in progress and owns the cabin settings until it ends. Nothing was changed.", "silent");
+                        return;
+                    }
+                    changeCabin(activity, action, steps, deadline, mode, waits - 1);
+                }, FRESH_WAIT_STEP_MS);
+                return;
+            }
         }
         String blocked = activity.cabinBlocked();
         String words = CabinControl.describe(steps);

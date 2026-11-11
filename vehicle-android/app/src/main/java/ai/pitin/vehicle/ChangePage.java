@@ -33,7 +33,7 @@ final class ChangePage extends CarPage {
         // The title tucks over the back button's empty right edge (not touchable), where the artboard puts it.
         CarKit.margins(k.title(header, "시작 전에 바꾸기", 40), -k.px(24), 0, 0, 0);
         k.flex(header);
-        k.caption(header, "바꾼 내용은 이번 쉼에만 써요");
+        k.caption(header, "고른 내용은 다음에도 그대로 써요");
 
         LinearLayout main = k.column(col);
         main.setLayoutParams(CarKit.lp(-1, 0, 1));

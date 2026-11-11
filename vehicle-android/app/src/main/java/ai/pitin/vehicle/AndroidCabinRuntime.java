@@ -25,7 +25,8 @@ final class AndroidCabinRuntime {
         SharedPreferences prefs = context.getApplicationContext().getSharedPreferences("pitin_cabin_ledger", Context.MODE_PRIVATE);
         return new CabinActuator.Store() {
             public String load() { return prefs.getString(name, null); }
-            public void save(String value) { prefs.edit().putString(name, value).apply(); }
+            // Written before the car is asked to change: it must be on disk even if power drops right after.
+            public void save(String value) { prefs.edit().putString(name, value).commit(); }
         };
     }
 }

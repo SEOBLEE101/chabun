@@ -58,6 +58,23 @@ class SyncedPresetsActivity : Activity() {
     companion object {
         const val EXTRA_SEND_REST = "sendRest"
 
+        /**
+         * The driver's climate the car will apply for a proposal: the phone's 차 안 설정 when it sets one (the car
+         * prefers it, CabinControl.plan), else the rest's own temperature and fan.
+         */
+        fun climateLine(rest: JSONObject): String {
+            val clim = rest.optJSONObject("cabin")?.optJSONObject("climDriver")
+            if (clim != null && clim.optString("mode") == "custom") {
+                val pref = ClimatePref("custom", clim.optDouble("temp", 24.0), clim.optString("fan", "auto"), clim.optString("dir", "keep"), clim.optString("ac", "keep"))
+                if (pref.valid()) return CabinPrefs.climateText(pref)
+            }
+            val car = rest.optJSONObject("vehicle") ?: return "그대로"
+            val parts = mutableListOf<String>()
+            if (!car.isNull("tempC")) parts += String.format(java.util.Locale.US, "%.1f°", car.getDouble("tempC"))
+            when (car.optString("fan")) { "low" -> parts += "바람 약하게"; "medium" -> parts += "바람 중간"; "high" -> parts += "바람 세게" }
+            return if (parts.isEmpty()) "그대로" else parts.joinToString(" · ")
+        }
+
         /** The propose_rest payload: the rest as this phone shows it, with its 차 안 설정. No workout data. */
         fun restProposal(p: Preset, cabin: CabinPrefs): JSONObject = JSONObject()
             .put("name", p.name).put("comfort", p.comfort)
@@ -72,7 +89,7 @@ class SyncedPresetsActivity : Activity() {
         presetOrigin = PresetSyncPolicy.fromRelayOrigin(relayBase)
         client = PresetSyncClient(presetOrigin)
         sendRest = intent?.getStringExtra(EXTRA_SEND_REST)?.let { runCatching { JSONObject(it) }.getOrNull() }
-        if (!debugBuild()) note = "이 빌드는 연결 서버 없이 동작해서 취향 함께 쓰기와 차에 보내기를 쓸 수 없어요."
+        if (serverless()) note = "이 빌드는 연결 서버 없이 동작해서 취향 함께 쓰기와 차에 보내기를 쓸 수 없어요."
         val prefs = getSharedPreferences("pitin_preset_sync_session", MODE_PRIVATE)
         if ( prefs.getString("origin", null) == presetOrigin) {
             token = prefs.getString("token", null)
@@ -265,6 +282,8 @@ class SyncedPresetsActivity : Activity() {
         if (revocationPending) {
             button(connection, if (busy) "서버 삭제 확인 중…" else "서버 삭제 다시 확인", !busy, primary = true) { disconnect() }
             theme.text(connection, "삭제 확인 전에는 새 연결·조회·변경을 하지 않아요. 이 폰의 로컬 선호는 그대로예요.", 14f, color = theme.muted)
+        } else if (token == null && serverless()) {
+            theme.text(connection, "연결하지 않아도 이 폰의 쉼과 차 안 설정은 그대로 쓸 수 있어요.", 14f, color = theme.muted)
         } else if (token == null) {
             val code = dialogs.input(connection, "웹에서 만든 폰용 연결 번호", "", true).apply {
                 inputType = android.text.InputType.TYPE_CLASS_NUMBER
@@ -294,11 +313,9 @@ class SyncedPresetsActivity : Activity() {
                 SeatPref(c.getJSONObject("seatDriver").getString("position"), c.getJSONObject("seatDriver").getString("comfort"), c.getJSONObject("seatDriver").getInt("level")),
                 SeatPref(c.getJSONObject("seatPassenger").getString("position"), c.getJSONObject("seatPassenger").getString("comfort"), c.getJSONObject("seatPassenger").getInt("level")),
                 light = LightPref(c.getJSONObject("light").getString("mode"), c.getJSONObject("light").getString("color"), c.getJSONObject("light").getInt("bright")))
-            val car = rest.getJSONObject("vehicle")
-            val temp = if (car.isNull("tempC")) "온도 그대로" else String.format(java.util.Locale.US, "%.1f°", car.getDouble("tempC"))
-            theme.text(card, "에어컨 $temp · 시트 ${CabinPrefs.seatText(prefs.seatDriver)} · 조명 ${CabinPrefs.lightText(prefs.light)}", 15f)
+            theme.text(card, "에어컨 ${climateLine(rest)} · 시트 ${CabinPrefs.seatText(prefs.seatDriver)} · 조명 ${CabinPrefs.lightText(prefs.light)}", 15f)
             theme.text(card, "운동 기록은 보내지 않아요. 차 화면에 이 쉼이 준비되고, 시작과 차 안 맞추기는 차에서 직접 해요.", 14f, color = theme.muted)
-            button(card, if (token == null) "먼저 위에서 연결해 주세요" else "차에 보내기", writable(), primary = pending == null) {
+            button(card, if (serverless()) "이 빌드에서는 보낼 수 없어요" else if (token == null) "먼저 위에서 연결해 주세요" else "차에 보내기", writable(), primary = pending == null) {
                 send("propose_rest", json("preset" to rest), success = {
                     sendRest = null
                     note = "차에 보냈어요. 차 화면에서 확인하고 직접 시작해요."
@@ -391,6 +408,9 @@ class SyncedPresetsActivity : Activity() {
     private fun dp(value: Int) = theme.dp(value)
     private fun toast(message: String) { note = message; if (::column.isInitialized) render() }
     private fun debugBuild() = applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+    /** Submission builds carry no connection server; same rule as MainActivity.serverless. */
+    private fun serverless() = !debugBuild() && !(intent?.getStringExtra("relayOrigin")
+        ?: CompanionFormatters.loadRelayBase(this, getString(R.string.relay_default_url))).trim().startsWith("https://")
     override fun finish() {
         super.finish()
         @Suppress("DEPRECATION") overridePendingTransition(R.anim.pit_pop_in, R.anim.pit_pop_out)

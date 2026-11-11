@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * 차 안 설정 (car-cabin, spec 6-2): left vertical tabs 시트 / 에어컨 / 조명, 운전석 / 동승석, a ‘지금 차’ read card,
- * moving illustrations and a draft that is kept with ‘이번 쉼에 저장’ or dropped with ‘되돌리기’.
+ * moving illustrations and a draft that is kept with ‘저장’ (for every rest on this car) or dropped with ‘되돌리기’.
  * In a build with a cabin actuator, ‘지금 차에 맞추기’ sends the values on screen while parked and ‘지금 차’ shows what
  * the car reports; the start of a rest applies the saved values too (MainActivity).
  */
@@ -134,7 +134,7 @@ final class CabinPage extends CarPage {
         revert = k.secondary(footer, "되돌리기", () -> { shell.cabinDraft = shell.cabinSaved.copy(); shell.cabinJustSaved = false; a.render(); });
         CarKit.margins(revert, k.px(24), 0, 0, 0);
         k.space(footer, 20);
-        save = k.primary(footer, "이번 쉼에 저장", shell::saveCabin);
+        save = k.primary(footer, "저장", shell::saveCabin);
         save.setMinWidth(k.px(330));
         return root;
     }
@@ -370,7 +370,7 @@ final class CabinPage extends CarPage {
             savePill.setCompoundDrawables(null, null, null, null);
         }
         CarKit.enable(revert, changed > 0);
-        save.setText(changed > 0 ? "이번 쉼에 저장" : "저장됨");
+        save.setText(changed > 0 ? "저장" : "저장됨");
         CarKit.enable(save, changed > 0);
         summary.setText(dr.summary());
         boolean actuator = a.environment.cabin() != null;

@@ -105,11 +105,24 @@ public final class CabinActuatorTest {
         check(a.results.size() == 1 && a.status(0) == CabinControl.Status.CONFIRMED && a.status(1) == CabinControl.Status.SKIPPED,
                 "first confirmed, second never sent: " + a.last());
 
-        // 2. A rest does not change what it cannot read back to.
-        FakeCar c2 = car(0); Answers a2 = new Answers(clock); c2.firstReadMissing = true;
+        // 2. A rest does not change what it cannot read back to. The value is asked for twice before that.
+        FakeCar c2 = car(0); Answers a2 = new Answers(clock); c2.readsBroken = true;
         c2.apply(List.of(HEAT), c2.beginSession(), 0, a2); clock.advanceTo(6000);
         check(c2.writes.isEmpty() && c2.get(HEAT) == 0 && a2.status(0) == CabinControl.Status.UNREADABLE && !c2.owesRestore(),
                 "unreadable baseline: no write");
+        check(c2.reads == 2, "an unreadable value is asked for once more, then left alone: " + c2.reads);
+        // 2b. A value the car could not give at first (just switched on) but gives a moment later is changed and owned.
+        FakeCar c2b = car(0); Answers a2b = new Answers(clock); c2b.firstReadMissing = true;
+        CabinActuator.Session s2b = c2b.beginSession();
+        c2b.apply(List.of(HEAT), s2b, 0, a2b); clock.advanceTo(6000);
+        check(c2b.writes.size() == 1 && c2b.get(HEAT) == 2 && a2b.status(0) == CabinControl.Status.CONFIRMED,
+                "a value readable on the second ask is changed: " + a2b.last());
+        c2b.endSession(s2b, a2b); clock.advanceTo(12000);
+        check(c2b.get(HEAT) == 0 && !c2b.owesRestore(), "and put back to what the second read said");
+        // 2c. A direct request (no rest owns it) is not delayed by the second ask.
+        FakeCar c2c = car(0); Answers a2c = new Answers(clock); c2c.firstReadMissing = true;
+        c2c.apply(List.of(HEAT), null, 0, a2c); clock.advanceTo(900);
+        check(c2c.writes.size() == 1 && c2c.reads >= 2 && a2c.results.size() == 1, "direct request written within the first second: " + c2c.writes);
 
         // 3. A late answer (3.1 s) is not "unchanged": the read decides, and the record stays for the restore.
         FakeCar c3 = car(0); Answers a3 = new Answers(clock); c3.ackDelay = 3100;

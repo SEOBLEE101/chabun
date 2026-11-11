@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity(), PitApp {
     private var foreground = false
     private var foregroundEpoch = 0L
     override val debug get() = isDebugBuild()
+    override val serverless get() = !isDebugBuild() && !relayBase().trim().startsWith("https://")
     private val exercisePermission = HealthPermission.getReadPermission(ExerciseSessionRecord::class)
     private val permissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
         clearSummary()
@@ -99,12 +100,13 @@ class MainActivity : ComponentActivity(), PitApp {
             "pair" -> shell.push(PairScreen(shell))
             "share", "WORKOUT" -> shell.push(ShareScreen(shell))
             "health" -> shell.push(HealthScreen(shell))
-            "homes" -> shell.push(HomesScreen(shell))
-            "arrival" -> shell.push(ArrivalScreen(shell))
+            // 집 연결은 합성 기기 체험이라 디버그 빌드에서만 연다.
+            "homes" -> if (isDebugBuild()) shell.push(HomesScreen(shell))
+            "arrival" -> if (isDebugBuild()) shell.push(ArrivalScreen(shell))
             "appearance" -> shell.push(AppearanceScreen(shell))
             "preset" -> shell.push(PresetEditScreen(shell, null))
             "sent" -> shell.push(SentScreen(shell))
-            "homedetail" -> shell.push(HomeDetailScreen(shell))
+            "homedetail" -> if (isDebugBuild()) shell.push(HomeDetailScreen(shell))
             "developer" -> if (isDebugBuild()) shell.push(DeveloperScreen(shell))
             else -> return false
         }

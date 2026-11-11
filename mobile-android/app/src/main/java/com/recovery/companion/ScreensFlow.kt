@@ -40,7 +40,7 @@ class PairScreen(shell: PhoneShell) : Screen(shell) {
     }
     override fun onStateChanged() { if (step() != renderedStep || step() != "code") rebuild() else updateCode() }
     override fun onShown() {
-        if (step() == "code") content.postDelayed({ (content.findViewWithTag<View>("code-field") as? EditText)?.let { f -> f.requestFocus(); WindowCompat.getInsetsController(ctx.window, f).show(WindowInsetsCompat.Type.ime()) } }, 600)
+        if (step() == "code" && !app.serverless) content.postDelayed({ (content.findViewWithTag<View>("code-field") as? EditText)?.let { f -> f.requestFocus(); WindowCompat.getInsetsController(ctx.window, f).show(WindowInsetsCompat.Type.ime()) } }, 600)
     }
     override fun fill(c: GapLayout) {
         val s = step(); renderedStep = s
@@ -57,6 +57,15 @@ class PairScreen(shell: PhoneShell) : Screen(shell) {
         }
     }
     private fun code(c: GapLayout) {
+        if (app.serverless) {
+            boxes = emptyList(); next = null
+            c.addView(ui.vstack(12f).apply {
+                addView(ui.display("이 빌드에서는\n차와 연결할 수 없어요", 30f))
+                addView(ui.body("연결 서버 없이 동작하는 빌드예요. 연결하지 않아도 폰에서 취향을 고르고, 차에서 바로 쉴 수 있어요."))
+            })
+            statusLine = ui.status().also { c.addView(it) }
+            return
+        }
         c.addView(ui.vstack(12f).apply {
             addView(ui.display("차 화면의 번호를\n입력해 주세요", 30f))
             addView(ui.body("차에서 차분을 열고 ‘폰 연결’을 누르면 6자리 번호가 보여요."))
@@ -281,9 +290,10 @@ class ShareScreen(shell: PhoneShell) : Screen(shell) {
         val revoking = app.pairing?.revocationPending == true
         if (!app.pairingConfirmed || revoking) {
             c.addView(ui.sunken(18f, 16f, 14f, 10f).apply {
-                addView(ui.rowTitle(if (revoking) "삭제를 먼저 확인해 주세요" else if (app.pairing != null) "차량 연결을 다시 확인해 주세요" else "먼저 차와 연결해 주세요", 14f))
-                addView(ui.caption(if (revoking) "삭제가 확인될 때까지 보내기를 잠시 멈춰요." else "연결은 차 화면의 6자리 번호로 해요. 연결하지 않아도 쉴 수 있어요."))
-                addView(ui.secondary("차량 연결로", 40f, 14f) { shell.push(PairScreen(shell)) })
+                val noServer = app.serverless && app.pairing == null
+                addView(ui.rowTitle(if (revoking) "삭제를 먼저 확인해 주세요" else if (app.pairing != null) "차량 연결을 다시 확인해 주세요" else if (noServer) "이 빌드에서는 차로 보낼 수 없어요" else "먼저 차와 연결해 주세요", 14f))
+                addView(ui.caption(if (revoking) "삭제가 확인될 때까지 보내기를 잠시 멈춰요." else if (noServer) "연결 서버 없이 동작하는 빌드예요. 연결하지 않아도 쉴 수 있어요." else "연결은 차 화면의 6자리 번호로 해요. 연결하지 않아도 쉴 수 있어요."))
+                if (!noServer) addView(ui.secondary("차량 연결로", 40f, 14f) { shell.push(PairScreen(shell)) })
             })
         }
         statusLine = ui.status().also { c.addView(it) }
@@ -396,7 +406,8 @@ class PresetEditScreen(shell: PhoneShell, presetId: String?) : Screen(shell) {
             if (isNew) addView(ui.caption("‘${source.name}’에서 복사했어요"))
         })
         c.addView(ui.vstack(14f).apply {
-            addView(SegmentedView(ctx, ui, listOf(Triple("car", "차에서", null), Triple("home", "집에서", null)), place) { place = it; fillCard() })
+            // 집 기기는 합성 기기 체험이라 디버그 빌드에서만 보인다.
+            if (app.debug) addView(SegmentedView(ctx, ui, listOf(Triple("car", "차에서", null), Triple("home", "집에서", null)), place) { place = it; fillCard() })
             cardBox = ui.card(20f, 6f, 0f).also { addView(it) }
             noteBox = ui.hstack().also { addView(it) }
         })
@@ -457,7 +468,7 @@ class PresetEditScreen(shell: PhoneShell, presetId: String?) : Screen(shell) {
     private fun confirmDelete() = shell.showSheet { ui, dismiss ->
         ui.vstack(14f).apply {
             addView(ui.h2("이 쉼을 지울까요?"))
-            addView(ui.body("‘$name’을 이 폰에서 지워요. 이미 만든 귀가 준비 예약은 그대로예요."))
+            addView(ui.body(if (app.debug) "‘$name’을 이 폰에서 지워요. 이미 만든 귀가 준비 예약은 그대로예요." else "‘$name’을 이 폰에서 지워요."))
             addView(ui.primary("지우기") {
                 dismiss(); store.delete(source.id); shell.markAllDirty(); app.selectPreset(PresetStore(ctx).selectedId); shell.pop()
             }, LinearLayout.LayoutParams(-1, ui.dp(56)).apply { topMargin = ui.dp(8) })

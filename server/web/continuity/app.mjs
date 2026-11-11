@@ -84,7 +84,7 @@ function render() {
   const shown=proposal||p;
   const custom=state.presets.filter(x=>x.kind==='custom');
   $('#app').innerHTML=`<div class="layout"><section aria-labelledby="phone-label"><div class="surface-label"><h2 id="phone-label">나의 폰</h2><span>MY COMFORT</span></div><article class="phone" data-testid="phone-surface">
-  <header class="phone-head"><strong>Pit-In</strong><span class="pill">공유 선호 · 합성 체험</span></header>
+  <header class="phone-head"><strong>차분</strong><span class="pill">공유 선호 · 합성 체험</span></header>
   <div class="phone-body">
     <p class="eyebrow">내가 고르는 편안함</p>
     <h2 class="phone-title">나에게 편안한 방식</h2>

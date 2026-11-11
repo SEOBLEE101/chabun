@@ -52,6 +52,13 @@ public final class CabinControlTest {
                 "an unknown UX state blocks");
 
         // Live rest: SafetyGate still judges real values; only the read-only switch is lifted.
+        // stale(): old or missing values say nothing about parking yet; a moving car with fresh values is not "stale".
+        check(CabinControl.stale(null, now), "no state is stale");
+        check(CabinControl.stale(state(SafetyGate.Gear.PARK, 0.0, true, now - SafetyGate.MAX_STATE_AGE_MS), now), "old state is stale");
+        check(CabinControl.stale(state(SafetyGate.Gear.PARK, 0.0, true, now + 1), now), "future sample is stale");
+        check(!CabinControl.stale(state(SafetyGate.Gear.PARK, 0.0, true, now - 100), now), "fresh parked state is not stale");
+        check(!CabinControl.stale(state(SafetyGate.Gear.DRIVE, 30.0, true, now), now), "fresh driving state is not stale");
+        check(CabinControl.writeBlocked(state(SafetyGate.Gear.DRIVE, 30.0, true, now), now) != null, "and still blocks the write");
         SafetyGate.Snapshot live = new SafetyGate.Snapshot(false, SafetyGate.Gear.PARK, 0.0, false, false, true, now);
         check(!SafetyGate.preview(live, now, true, true).previewAllowed, "read-only build stays blocked");
         check(SafetyGate.preview(CabinControl.forLiveRest(live), now, true, true).previewAllowed, "live adapter passes when parked");

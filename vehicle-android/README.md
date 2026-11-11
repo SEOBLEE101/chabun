@@ -3,6 +3,8 @@
 > 개발하면서 남긴 기록입니다. 일부는 지난 시점의 내용이고, 이 저장소에 없는 문서를 가리킬 수 있습니다. 최신 설명은 저장소 맨 위 `README.md`를 보세요.
 >
 > 특히 아래의 "simulated parked pause", "Live rest session: Disabled", "actuation: Absent", "Call state stays unknown"은 2026-10-24 무렵의 상태입니다. 지금은 읽기 전용(`pleosReadOnly`)·`pleos` 빌드가 실제 차 상태(기어·속도·화면 제한·통화 오디오 모드)로 3분 쉬기를 판정하고, `pleos` 빌드는 주차 중에만 공조·시트 열선/통풍·앰비언트 조명을 바꾸고 되돌립니다(Vehicle Control 권한 승인 전, 에뮬레이터에서 확인).
+>
+> 그 밖에 지금과 다른 곳: 화면 분위기는 Graphite 하나가 아니라 Graphite·Pearl·Umber 세 가지입니다. 본문이 가리키는 `scripts/test-vehicle-core.mjs`와 `npm run test:vehicle-core`는 이 저장소에 없고, `scripts/check-native-java.py`는 지금 소스에 맞지 않습니다. 순수 Java 검사는 `./gradlew :app:runVehiclePolicyChecks`로 돌립니다.
 
 ## 2026-10-28 검수 수정
 

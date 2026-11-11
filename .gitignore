@@ -16,6 +16,14 @@ node_modules/
 *.p12
 signing.properties
 *-key.pem
+*.key
+*.pem
+!server/tests/fixtures/PUBLIC-TEST-ONLY-cert.pem
+
+# 기타
+*.log
+.vscode/
+.DS_Store
 
 # 로컬 서버 데이터와 개발용 인증서
 .setup/

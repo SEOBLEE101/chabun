@@ -32,11 +32,15 @@ final class PleosCabin extends CabinActuator {
     private final Vehicle vehicle;
     private final java.util.function.BooleanSupplier driverOnRight;
     /** The car's zone for each step key, learned from its capabilities. */
-    private final Map<String, SeatArea> zones = new HashMap<>();
+    private final Map<String, SeatArea> zones = new java.util.concurrent.ConcurrentHashMap<>(); // SDK callbacks write, the main thread reads
+    /** Items whose zone was asked for once in this process (found or not), so a read asks at most once. */
+    private final java.util.Set<String> zoneAsked = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Scheduler clock;
 
     /** {@code driverOnRight}: the car's INFO_DRIVER_SEAT says the driver sits on the right (false when unknown). */
     PleosCabin(Vehicle vehicle, Scheduler clock, Store store, java.util.function.BooleanSupplier driverOnRight) {
         super(clock, store);
+        this.clock = clock;
         this.vehicle = vehicle;
         this.driverOnRight = driverOnRight;
     }
@@ -135,6 +139,52 @@ final class PleosCabin extends CabinActuator {
         return null;
     }
 
+    /**
+     * Asks the car which zone this item uses, then runs {@code then} on the scheduler. A restore after a restart
+     * (and the first ‘지금 차’ read) comes here before any {@link #resolve}: without it the guessed zone makes the
+     * light and fan unreadable, and those items could never be put back.
+     */
+    private void learnZone(CabinControl.Step s, Runnable then) {
+        HVAC h = vehicle.getHVAC();
+        Seat seat = vehicle.getSeat();
+        Light light = vehicle.getLight();
+        Runnable next = () -> clock.post(then, 0);
+        Function1<Exception, Unit> fail = e -> { next.run(); return Unit.INSTANCE; };
+        switch (s.item) {
+            case CLIMATE_POWER:
+                h.checkHvacPowerCapabilities((CapabilityConfig c, List<SeatArea> list) -> learned(s, c, list, next), fail); break;
+            case CLIMATE_AUTO:
+                h.checkHvacAutoCapabilities((CapabilityConfig c, List<SeatArea> list) -> learned(s, c, list, next), fail); break;
+            case AC:
+                h.checkHvacAcCapabilities((CapabilityConfig c, List<SeatArea> list) -> learned(s, c, list, next), fail); break;
+            case TEMPERATURE:
+                h.checkHvacTemperatureCapabilities((CapabilityConfig c, Map<SeatArea, AreaBounds<Float>> m) -> learned(s, c, m == null ? null : m.keySet(), next), fail); break;
+            case FAN:
+                h.checkHvacFanSpeedCapabilities((CapabilityConfig c, Map<SeatArea, AreaBounds<Integer>> m) -> learned(s, c, m == null ? null : m.keySet(), next), fail); break;
+            case DIRECTION:
+                h.checkHvacFanDirectionCapabilities((CapabilityConfig c, Map<SeatArea, ? extends List<? extends FanDirectionType>> m) -> learned(s, c, m == null ? null : m.keySet(), next), fail); break;
+            case SEAT_HEAT:
+                seat.checkSeatTemperatureCapabilities((CapabilityConfig c, Map<SeatArea, AreaBounds<Integer>> m) -> learned(s, c, m == null ? null : m.keySet(), next), fail); break;
+            case SEAT_VENT:
+                seat.checkSeatVentilationCapabilities((CapabilityConfig c, Map<SeatArea, AreaBounds<Integer>> m) -> learned(s, c, m == null ? null : m.keySet(), next), fail); break;
+            case LIGHT_SWITCH:
+                light.checkAmbientLightSwitchCapabilities((CapabilityConfig c, Map<SeatArea, ? extends List<? extends LightSwitch>> m) -> learned(s, c, m == null ? null : m.keySet(), next), fail); break;
+            case LIGHT_BRIGHTNESS:
+                light.checkAmbientLightBrightnessCapabilities((CapabilityConfig c, Map<SeatArea, AreaBounds<Integer>> m) -> learned(s, c, m == null ? null : m.keySet(), next), fail); break;
+            case LIGHT_COLOR:
+                light.checkAmbientLightBrightnessColorCapabilities((CapabilityConfig c, List<SeatArea> list) -> learned(s, c, list, next), fail); break;
+            default: next.run();
+        }
+    }
+
+    /** Remembers the zone (when the car names one) and always goes on, whatever the car answered. */
+    private Unit learned(CabinControl.Step s, CapabilityConfig c, Collection<? extends SeatArea> zones, Runnable next) {
+        try { zone(s, c, zones); }
+        catch (RuntimeException e) { CabinActuator.log.accept("zone of " + s.key() + " not learned: " + e); }
+        next.run();
+        return Unit.INSTANCE;
+    }
+
     private SeatArea zoneFor(CabinControl.Step s) {
         SeatArea z = zones.get(s.key());
         return z != null ? z : new SeatArea("light".equals(s.group()) ? SeatValue.ROW_1_LEFT : seatOf(s.driver));
@@ -143,6 +193,7 @@ final class PleosCabin extends CabinActuator {
     // ── read and write ────────────────────────────────────────────────
 
     @Override void read(CabinControl.Step s, Answer out) {
+        if (!zones.containsKey(s.key()) && zoneAsked.add(s.key())) { learnZone(s, () -> read(s, out)); return; }
         HVAC h = vehicle.getHVAC();
         Seat seat = vehicle.getSeat();
         Light light = vehicle.getLight();
@@ -196,7 +247,11 @@ final class PleosCabin extends CabinActuator {
         return super.same(step, asked, reported);
     }
 
-    private static Unit unit(Runnable r) { r.run(); return Unit.INSTANCE; }
+    /** A failing callback body must not take the SDK's thread down; the actuator's call timeout then answers null. */
+    private static Unit unit(Runnable r) {
+        try { r.run(); } catch (RuntimeException e) { CabinActuator.log.accept("car callback failed: " + e); }
+        return Unit.INSTANCE;
+    }
     private static Integer bit(Boolean on) { return on == null ? null : on ? 1 : 0; }
     private static Integer tenths(Float t) { return t == null || !Float.isFinite(t) ? null : Math.round(t * 10); }
     private static Integer switchBit(LightSwitch v) { return v == LightSwitch.ON ? Integer.valueOf(1) : v == LightSwitch.OFF ? Integer.valueOf(0) : null; }

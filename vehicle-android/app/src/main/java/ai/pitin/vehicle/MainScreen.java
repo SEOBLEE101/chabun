@@ -166,7 +166,7 @@ final class MainScreen {
         a.settingsButton.setVisibility(state == RestSession.State.ACTIVE || a.screen == MainActivity.Screen.HOME ? View.GONE : View.VISIBLE);
         a.settingsButton.setText(sessionScreen ? complete ? "다시 3분 쉬기" : "준비 확인" : "홈으로");
         a.modeText.setText(BuildConfig.SIMULATED_VEHICLE ? "DEMO · 합성 차량 상태 · 실제 차량 제어 없음" : "PLEOS · 읽기 전용 · 실제 쉼 차단");
-        if (a.guideLabel != null) a.guideLabel.setText(a.naturalRestMode ? "자연스럽게 쉬기" : "안내에 맞춰 쉬기");
+        if (a.guideLabel != null) a.guideLabel.setText(a.naturalRestMode ? "자유롭게 쉬기" : "안내에 맞춰 쉬기");
         SetupScreen.render(a, gate);
         HomeScreen.render(a, gate);
         if (BuildConfig.SIMULATED_VEHICLE) {
@@ -211,7 +211,7 @@ final class MainScreen {
             a.supportText.setText("이번 쉼은 어땠나요?");
         } else {
             a.titleText.setText("잠깐 쉬어갈까요?");
-            String modeNote = a.naturalRestMode ? "3분 · 자연스럽게 쉬기 · 소리 끔\n박자 안내 없이 편안하게 쉬어가세요." : "3분 · 안내에 맞춰 쉬기 · 소리 끔\n안내는 참고만 해도 좋아요.";
+            String modeNote = a.naturalRestMode ? "3분 · 자유롭게 쉬기 · 소리 끔\n박자 안내 없이 편안하게 쉬어가세요." : "3분 · 안내에 맞춰 쉬기 · 소리 끔\n안내는 참고만 해도 좋아요.";
             a.supportText.setText(gate.previewAllowed ? modeNote : RestGateMessages.message(gate.reason));
         }
         FinishLayer.render(a, state);
