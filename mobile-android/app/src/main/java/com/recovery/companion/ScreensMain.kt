@@ -105,6 +105,8 @@ class TodayScreen(shell: PhoneShell) : Screen(shell) {
             addView(ui.display("잠깐 쉬어갈까요?"))
         })
         c.addView(moodArt(ui, 210f, 330f, 340f), LinearLayout.LayoutParams(-1, ui.dp(210)).apply { marginStart = -ui.dp(22); marginEnd = -ui.dp(22); topMargin = -ui.dp(6) })
+        // 하루 쉼: 출퇴근·웜업·운동 뒤에만 '지금' 카드가 보인다(제안만).
+        momentCardFor(this)?.let { c.addView(it) }
 
         val card = ui.card(22f, 22f, 18f)
         card.setPadding(ui.dp(22), ui.dp(22), ui.dp(22), ui.dp(20))
@@ -317,6 +319,7 @@ class ConnectScreen(shell: PhoneShell) : Screen(shell) {
         val rows = mutableListOf<View>(
             ui.row("car", "차량", subView = ui.live(if (app.pairingConfirmed) "차량 · 이어져 있어요" else conn, idle)) { shell.push(PairScreen(shell)) },
             ui.row("pulse", "운동 기록", "$source · 누를 때만 최근 운동을 읽어요", end = health) { shell.push(HealthScreen(shell)) },
+            ui.row("today", "하루 쉼", "출퇴근 · 운동 전후 · 쉬어 갈 곳", end = if (LifeRestPrefs(ctx).commute.enabled) "켜짐" else "꺼짐") { shell.push(LifeRestScreen(shell)) },
             ui.row("sliders", "취향 함께 쓰기", "차와 웹이 같은 쉼 목록을 봐요", end = Fmt.syncedState(ctx)) { app.openSyncedPresets() }
         )
         // 집 연결은 아직 합성 기기만 있는 체험이라 디버그 빌드에서만 보인다.

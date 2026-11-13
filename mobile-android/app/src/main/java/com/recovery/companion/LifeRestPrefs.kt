@@ -1,0 +1,74 @@
+package com.recovery.companion
+
+import android.content.Context
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+
+/** 생활 전반 쉼 설정. 이 폰 안에만 저장하고 서버·차로 보내지 않는다. 깨진 값은 기본값으로 돌아간다. */
+class LifeRestPrefs(context: Context) {
+    private val p = context.getSharedPreferences("chabun_life_rest", Context.MODE_PRIVATE)
+
+    var commute: CommuteSettings
+        get() = runCatching {
+            CommuteSettings(
+                enabled = p.getBoolean("commuteOn", false),
+                morning = LocalTime.parse(p.getString("morning", "08:30")),
+                evening = LocalTime.parse(p.getString("evening", "18:30")),
+                days = (p.getString("days", "1,2,3,4,5") ?: "").split(',').filter { it.isNotBlank() }.map { DayOfWeek.of(it.toInt()) }.toSet(),
+                morningPresetId = p.getString("morningPreset", "gentle_refresh") ?: "gentle_refresh",
+                eveningPresetId = p.getString("eveningPreset", "quiet_rest") ?: "quiet_rest",
+            ).validated()
+        }.getOrElse { CommuteSettings() }
+        set(v) {
+            val c = v.validated()
+            p.edit().putBoolean("commuteOn", c.enabled).putString("morning", c.morning.toString()).putString("evening", c.evening.toString())
+                .putString("days", c.days.map { it.value }.sorted().joinToString(","))
+                .putString("morningPreset", c.morningPresetId).putString("eveningPreset", c.eveningPresetId).apply()
+        }
+
+    /** 오늘(자정을 넘긴 웜업 창이면 어제) 계획만 돌려준다. 지난 계획은 읽을 때 지운다. */
+    fun plan(today: LocalDate): WorkoutPlan? {
+        val raw = p.getString("plan", null) ?: return null
+        val parsed = runCatching {
+            val f = raw.split('|'); require(f.size == 3)
+            WorkoutPlan(LocalDate.parse(f[0]), f[1], LocalTime.parse(f[2])).validated()
+        }.getOrNull()
+        val active = DayRhythmPolicy.activePlan(parsed, today)
+        if (active == null) p.edit().remove("plan").apply()
+        return active
+    }
+
+    fun setPlan(plan: WorkoutPlan?) {
+        if (plan == null) p.edit().remove("plan").apply()
+        else plan.validated().let { p.edit().putString("plan", "${it.date}|${it.type}|${it.start}").apply() }
+    }
+
+    var placeBook: PlaceBook
+        get() = PlaceBook.decode(p.getString("places", null))
+        set(v) { p.edit().putString("places", v.encode()).apply() }
+
+    var heartNudge: Boolean
+        get() = p.getBoolean("heartNudge", false)
+        set(v) {
+            val e = p.edit().putBoolean("heartNudge", v)
+            if (!v) e.remove("nudgeShownAt").remove("nudgeDismissedOn").remove("heartBaseline")
+            e.apply()
+        }
+
+    var nudgeMemory: NudgeMemory
+        get() = NudgeMemory(
+            p.getLong("nudgeShownAt", 0L).takeIf { it > 0 }?.let(Instant::ofEpochMilli),
+            p.getString("nudgeDismissedOn", null)?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+        )
+        set(v) {
+            p.edit().apply {
+                if (v.lastShownAt == null) remove("nudgeShownAt") else putLong("nudgeShownAt", v.lastShownAt.toEpochMilli())
+                if (v.dismissedOn == null) remove("nudgeDismissedOn") else putString("nudgeDismissedOn", v.dismissedOn.toString())
+            }.apply()
+        }
+
+    /** 생활 전반 쉼 데이터를 모두 지운다(개인정보 화면에서). */
+    fun clearAll() { p.edit().clear().apply() }
+}
