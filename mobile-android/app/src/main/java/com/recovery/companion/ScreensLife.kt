@@ -23,6 +23,18 @@ fun momentCardFor(screen: Screen): View? {
     val commute = prefs.commute
     val lastEnd = app.workout?.end?.let { LocalDateTime.ofInstant(it, ZoneId.systemDefault()) }
     val moment = runCatching { DayRhythmPolicy.momentAt(now, commute, plan, lastEnd) }.getOrDefault(DayMoment.NONE)
+    if (app.heartNudgeShown) return ui.sunken(24f, 20f, 18f, 8f).apply {
+        addView(ui.overline("지금"))
+        addView(ui.rowTitle("잠깐 쉬어 갈까요?", 17f))
+        addView(ui.body(HeartNudgePolicy.MESSAGE, 14f))
+        addView(ui.hstack(8f).apply {
+            addView(ui.secondary("쉴 준비", 44f, 14f) {
+                val store = PresetStore(ctx); store.beginRest(); app.selectPreset("quiet_rest"); shell.push(ShareScreen(shell))
+            })
+            addView(ui.ghost("오늘은 괜찮아요", screen.t.ink3, 14f) { app.dismissHeartNudge() })
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(4) })
+        addView(ui.caption(HeartNudgePolicy.NOTE, size = 12f))
+    }
     val card = DayRhythmPolicy.card(moment, commute, plan) ?: return null
     return ui.sunken(24f, 20f, 18f, 8f).apply {
         addView(ui.overline("지금"))
@@ -63,6 +75,11 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
         c.addView(ui.list(
             ui.row("house", "쉬어 갈 곳", placesSub()) { shell.push(PlacesScreen(shell)) },
         ))
+        c.addView(ui.vstack(6f).apply {
+            addView(ui.sectionHead("워치 신호", "선택"))
+            addView(ui.list(ui.toggleRow("심박이 높게 이어질 때 쉼 제안", "앱을 열 때만 최근 심박을 읽어요. 기록은 저장하지 않아요.", prefs.heartNudge) { on -> app.setHeartNudge(on) }))
+            addView(ui.caption(HeartNudgePolicy.NOTE), LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
+        })
         statusLine = ui.status().also { c.addView(it) }
         c.addView(ui.info("설정은 이 폰에만 저장해요. 서버와 차로 보내지 않아요."))
     }

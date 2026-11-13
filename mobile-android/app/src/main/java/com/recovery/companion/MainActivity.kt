@@ -8,6 +8,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -56,6 +57,13 @@ class MainActivity : ComponentActivity(), PitApp {
         if (exercisePermission in granted) task { readWorkout(requestedSamsungOnly) }
         else { shell.report("운동 읽기를 허용하지 않았어요. 운동 기록 없이도 쉼을 고를 수 있어요."); refreshHealthAccess(); refreshHome() }
     }
+    private val heartPermission = HealthPermission.getReadPermission(HeartRateRecord::class)
+    private val heartPermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
+        if (heartPermission in granted) { LifeRestPrefs(this).heartNudge = true; checkHeartNudge() }
+        else { LifeRestPrefs(this).heartNudge = false; shell.report("심박 읽기를 허용하지 않아 켜지 않았어요.") }
+        refreshHome()
+    }
+    override var heartNudgeShown = false; private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,6 +124,7 @@ class MainActivity : ComponentActivity(), PitApp {
     override fun onResume() {
         super.onResume()
         refreshHealthAccess()
+        checkHeartNudge()
         foreground = true
         appearanceSync.start(::updateAppearance)
         expireRevocationIfNeeded()
@@ -189,6 +198,63 @@ class MainActivity : ComponentActivity(), PitApp {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean("requestedSamsungOnly", requestedSamsungOnly); outState.putString("tab", shell.tab.name)
         super.onSaveInstanceState(outState)
+    }
+
+    override fun setHeartNudge(on: Boolean) {
+        val prefs = LifeRestPrefs(this)
+        if (!on) { prefs.heartNudge = false; heartNudgeShown = false; refreshHome(); return }
+        lifecycleScope.launch {
+            try {
+                val client = healthClient()
+                if (heartPermission in client.permissionController.getGrantedPermissions()) { prefs.heartNudge = true; checkHeartNudge(); refreshHome() }
+                else heartPermissions.launch(setOf(heartPermission))
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { prefs.heartNudge = false; shell.report(e.message ?: "Health Connect를 열지 못했어요."); refreshHome() }
+        }
+    }
+
+    override fun dismissHeartNudge() {
+        val prefs = LifeRestPrefs(this)
+        prefs.nudgeMemory = prefs.nudgeMemory.copy(dismissedOn = java.time.LocalDate.now())
+        heartNudgeShown = false; refreshHome()
+    }
+
+    /** 사용자가 켠 경우에만, 앱을 열 때 최근 7일 심박과 운동을 읽어 제안 여부를 정한다. 읽은 기록은 저장하지 않는다. */
+    private fun checkHeartNudge() {
+        val prefs = LifeRestPrefs(this)
+        if (!prefs.heartNudge || heartNudgeShown) return
+        lifecycleScope.launch {
+            try {
+                if (HealthConnectClient.getSdkStatus(this@MainActivity) != HealthConnectClient.SDK_AVAILABLE) return@launch
+                val client = HealthConnectClient.getOrCreate(this@MainActivity)
+                val granted = client.permissionController.getGrantedPermissions()
+                if (heartPermission !in granted) { prefs.heartNudge = false; refreshHome(); return@launch }
+                val now = Instant.now(); val range = TimeRangeFilter.between(now.minus(HeartNudgePolicy.BASELINE_PERIOD), now)
+                val samples = mutableListOf<HrSample>(); var token: String? = null
+                do {
+                    val res = client.readRecords(ReadRecordsRequest(HeartRateRecord::class, timeRangeFilter = range, pageToken = token))
+                    res.records.forEach { r -> r.samples.forEach { samples += HrSample(it.time, it.beatsPerMinute.toInt()) } }
+                    token = res.pageToken
+                } while (!token.isNullOrEmpty())
+                val exercises = mutableListOf<Span>()
+                if (exercisePermission in granted) {
+                    token = null
+                    do {
+                        val res = client.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, timeRangeFilter = range, pageToken = token))
+                        res.records.forEach { exercises += Span(it.startTime, it.endTime) }
+                        token = res.pageToken
+                    } while (!token.isNullOrEmpty())
+                }
+                val baseline = HeartNudgePolicy.baseline(samples, exercises, now)
+                val result = HeartNudgePolicy.decide(true, samples, exercises, baseline, prefs.nudgeMemory, now, java.time.ZoneId.systemDefault())
+                if (result == NudgeResult.SUGGEST) {
+                    heartNudgeShown = true
+                    prefs.nudgeMemory = prefs.nudgeMemory.copy(lastShownAt = now)
+                    refreshHome()
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { /* 제안은 선택 기능이라 읽기 실패는 조용히 넘긴다 */ }
+        }
     }
 
     override fun selectPreset(id: String) {

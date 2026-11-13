@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <queries><package android:name="com.google.android.apps.healthdata" /></queries>
     <application android:icon="@mipmap/pitin_app_icon" android:label="${appLabel}" android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@style/Theme.PitIn">
         <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">

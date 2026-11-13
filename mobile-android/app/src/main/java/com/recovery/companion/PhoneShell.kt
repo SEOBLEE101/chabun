@@ -53,6 +53,10 @@ interface PitApp {
     fun sendRestToCar(presetId: String)
     fun appearanceChanged()
     fun selectPreset(id: String)
+    /** 워치 심박 쉼 제안(선택): 앱을 열 때만 읽어 정한다. true면 홈에 제안 카드가 보인다. */
+    val heartNudgeShown: Boolean
+    fun setHeartNudge(on: Boolean)
+    fun dismissHeartNudge()
 }
 
 /** 이 프로세스 안에서만 사는 귀가 준비 체험(합성 기기). */
