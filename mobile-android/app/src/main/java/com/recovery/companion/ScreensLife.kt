@@ -19,7 +19,7 @@ fun momentCardFor(screen: Screen): View? {
     val ctx = screen.ctx; val ui = screen.ui; val app = screen.app; val shell = screen.shell
     val prefs = LifeRestPrefs(ctx)
     val now = LocalDateTime.now()
-    val plan = prefs.plan(now.toLocalDate())
+    val plan = prefs.plan(now)
     val commute = prefs.commute
     val lastEnd = app.workout?.end?.let { LocalDateTime.ofInstant(it, ZoneId.systemDefault()) }
     val moment = runCatching { DayRhythmPolicy.momentAt(now, commute, plan, lastEnd) }.getOrDefault(DayMoment.NONE)
@@ -35,6 +35,7 @@ fun momentCardFor(screen: Screen): View? {
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(4) })
         addView(ui.caption(HeartNudgePolicy.NOTE, size = 12f))
     }
+    if (moment == DayMoment.NONE || prefs.dismissed(moment, now.toLocalDate())) return null
     val card = DayRhythmPolicy.card(moment, commute, plan) ?: return null
     return ui.sunken(24f, 20f, 18f, 8f).apply {
         addView(ui.overline("지금"))
@@ -52,6 +53,7 @@ fun momentCardFor(screen: Screen): View? {
                     shell.push(ShareScreen(shell))
                 })
             }
+            addView(ui.ghost("오늘은 닫기", screen.t.ink3, 14f) { prefs.dismiss(moment, now.toLocalDate()); screen.rebuild() })
             addView(ui.ghost("설정", screen.t.ink3, 14f) { shell.push(LifeRestScreen(shell)) })
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(4) })
     }
@@ -136,8 +138,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
     private fun presetName(id: String) = PresetStore(ctx).all().firstOrNull { it.id == id }?.name ?: Fmt.comfortName(id)
 
     private fun planSection(c: GapLayout) {
-        val today = LocalDate.now()
-        val plan = prefs.plan(today)
+        val plan = prefs.plan(LocalDateTime.now())
         c.addView(ui.vstack(6f).apply {
             addView(ui.sectionHead("오늘 운동"))
             if (plan != null) {

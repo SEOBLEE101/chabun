@@ -52,9 +52,11 @@ object DayRhythmPolicy {
     val WORKOUT_EARLY_SLACK: Duration = Duration.ofMinutes(30)
     val AFTER_WORKOUT_FOR: Duration = Duration.ofMinutes(90)
 
-    /** 오늘(또는 자정을 넘긴 창이면 어제) 계획만 살린다. */
-    fun activePlan(plan: WorkoutPlan?, today: LocalDate): WorkoutPlan? =
-        plan?.takeIf { it.date == today || (it.date == today.minusDays(1) && it.startAt().plus(WARMUP_AFTER).toLocalDate() == today) }
+    /** 계획은 '다음 날 0시'와 '계획 시각 + 3시간' 중 늦은 때까지 산다(밤 운동이 자정을 넘겨 끝나도 운동 뒤 쉼을 받도록). */
+    val PLAN_GRACE: Duration = Duration.ofHours(3)
+    fun planExpiresAt(plan: WorkoutPlan): LocalDateTime = maxOf(plan.date.plusDays(1).atStartOfDay(), plan.startAt().plus(PLAN_GRACE))
+    fun activePlan(plan: WorkoutPlan?, now: LocalDateTime): WorkoutPlan? =
+        plan?.takeIf { !now.toLocalDate().isBefore(it.date) && now.isBefore(planExpiresAt(it)) }
 
     /**
      * 지금이 어떤 때인지. 우선순위: 운동 뒤 > 웜업 > 퇴근 > 출근.

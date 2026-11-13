@@ -4,6 +4,7 @@ import android.content.Context
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 /** 생활 전반 쉼 설정. 이 폰 안에만 저장하고 서버·차로 보내지 않는다. 깨진 값은 기본값으로 돌아간다. */
@@ -28,14 +29,14 @@ class LifeRestPrefs(context: Context) {
                 .putString("morningPreset", c.morningPresetId).putString("eveningPreset", c.eveningPresetId).apply()
         }
 
-    /** 오늘(자정을 넘긴 웜업 창이면 어제) 계획만 돌려준다. 지난 계획은 읽을 때 지운다. */
-    fun plan(today: LocalDate): WorkoutPlan? {
+    /** 아직 살아 있는 계획만 돌려준다(다음 날 0시와 계획 + 3시간 중 늦은 때까지). 지난 계획은 읽을 때 지운다. */
+    fun plan(now: LocalDateTime): WorkoutPlan? {
         val raw = p.getString("plan", null) ?: return null
         val parsed = runCatching {
             val f = raw.split('|'); require(f.size == 3)
             WorkoutPlan(LocalDate.parse(f[0]), f[1], LocalTime.parse(f[2])).validated()
         }.getOrNull()
-        val active = DayRhythmPolicy.activePlan(parsed, today)
+        val active = DayRhythmPolicy.activePlan(parsed, now)
         if (active == null) p.edit().remove("plan").apply()
         return active
     }
@@ -68,6 +69,14 @@ class LifeRestPrefs(context: Context) {
                 if (v.dismissedOn == null) remove("nudgeDismissedOn") else putString("nudgeDismissedOn", v.dismissedOn.toString())
             }.apply()
         }
+
+    /** '오늘은 닫기': 그날 그 때(출근·퇴근·웜업·운동 뒤)의 카드는 다시 보이지 않는다. 날이 바뀌면 풀린다. */
+    fun dismissed(moment: DayMoment, today: LocalDate): Boolean =
+        (p.getString("dismissed", "") ?: "").split(',').contains("$today:${moment.name}")
+    fun dismiss(moment: DayMoment, today: LocalDate) {
+        val kept = (p.getString("dismissed", "") ?: "").split(',').filter { it.startsWith("$today:") }
+        p.edit().putString("dismissed", (kept + "$today:${moment.name}").distinct().joinToString(",")).apply()
+    }
 
     /** 생활 전반 쉼 데이터를 모두 지운다(개인정보 화면에서). */
     fun clearAll() { p.edit().clear().apply() }
