@@ -33,6 +33,17 @@ public final class GleoActionPolicy {
 
     private GleoActionPolicy() { }
 
+    /**
+     * The schema function name inside an intent action. The public guide shows the bare name ("ADD_REMINDER");
+     * the Gleo app on the Pleos Connect 2.1 emulator (4.2.0.15, seen 2026-11-13) sends "<package>.<name>".
+     * Only this app's own package is taken off the front; anything else is left as it came.
+     */
+    public static String functionName(String action, String applicationId) {
+        if (action == null || applicationId == null || applicationId.isEmpty()) return action;
+        String prefix = applicationId + ".";
+        return action.startsWith(prefix) ? action.substring(prefix.length()) : action;
+    }
+
     public static boolean recognizes(String action) {
         return OPEN.equals(action) || PREPARE.equals(action) || CABIN.equals(action) || SET.equals(action);
     }

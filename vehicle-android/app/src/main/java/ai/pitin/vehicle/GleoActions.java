@@ -20,7 +20,8 @@ final class GleoActions {
     private GleoActions() { }
 
     static void handle(MainActivity activity, Intent intent) {
-        String action = intent == null ? null : intent.getAction();
+        // Gleo may put the package in front of the function name; the callback answers with the schema's name.
+        String action = GleoActionPolicy.functionName(intent == null ? null : intent.getAction(), activity.getPackageName());
         if (!GleoActionPolicy.recognizes(action)) return;
         CabinActuator cabinClock = activity.environment.cabin();
         long deadline = cabinClock == null ? 0 : cabinClock.now() + ANSWER_WITHIN_MS;
@@ -176,6 +177,7 @@ final class GleoActions {
         List<String> parts = new java.util.ArrayList<>();
         for (CabinControl.Step s : steps) {
             switch (s.item) {
+                case CLIMATE_POWER: parts.add("climate " + (s.value == 1 ? "on" : "off")); break;
                 case TEMPERATURE: parts.add(String.format(java.util.Locale.ROOT, "temperature %d.%d C", s.value / 10, s.value % 10)); break;
                 case FAN: parts.add("fan " + (s.value == CabinControl.FAN_LOW ? "low" : s.value == CabinControl.FAN_MEDIUM ? "medium" : "high")); break;
                 case CLIMATE_AUTO: if (s.value == 1) parts.add("fan auto"); break;
@@ -189,7 +191,11 @@ final class GleoActions {
                 default: break;
             }
         }
-        return parts.isEmpty() ? "seat heating and ventilation off" : String.join(", ", parts);
+        if (!parts.isEmpty()) return String.join(", ", parts);
+        // Only seat steps at level 0 (and fan auto off) add nothing above.
+        for (CabinControl.Step s : steps)
+            if (s.item == CabinControl.Item.SEAT_HEAT || s.item == CabinControl.Item.SEAT_VENT) return "seat heating and ventilation off";
+        return "fan auto off";
     }
 
     private static void sendResponse(MainActivity activity, String action, String status, String message, String mode) {

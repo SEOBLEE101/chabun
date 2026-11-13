@@ -23,6 +23,11 @@
                 <action android:name="PREPARE_QUIET_REST" />
                 <action android:name="OPEN_CABIN_SETTINGS" />
                 <action android:name="SET_CABIN" />
+                <!-- The Gleo app on the Pleos Connect emulator sends "<package>.<function>" (seen 2026-11-13);
+                     the public guide shows the bare function name. Both are declared. -->
+                <action android:name="${applicationId}.PREPARE_QUIET_REST" />
+                <action android:name="${applicationId}.OPEN_CABIN_SETTINGS" />
+                <action android:name="${applicationId}.SET_CABIN" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

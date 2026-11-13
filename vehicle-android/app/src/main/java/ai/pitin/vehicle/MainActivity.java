@@ -134,7 +134,8 @@ public final class MainActivity extends Activity {
         shell.install();
         render();
         Intent start = getIntent();
-        boolean voice = start != null && GleoActionPolicy.recognizes(start.getAction());
+        // Gleo may send "<package>.<function>"; a cold start by voice must skip the intro and the 시작 보류 check too.
+        boolean voice = start != null && GleoActionPolicy.recognizes(GleoActionPolicy.functionName(start.getAction(), getPackageName()));
         shell.handleDebugExtras(start); // demo debug builds only; no-op otherwise
         if (savedInstanceState == null) GleoActions.handle(this, start);
         boolean skipIntro = start != null && start.getBooleanExtra("reviewSkipIntro", false) && BuildConfig.DEBUG;
