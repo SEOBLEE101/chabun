@@ -63,11 +63,49 @@ class MainActivity : ComponentActivity(), PitApp {
         else { LifeRestPrefs(this).heartNudge = false; shell.report("심박 읽기를 허용하지 않아 켜지 않았어요.") }
         refreshHome()
     }
-    override var heartNudgeShown = false; private set
+    /** 제안 카드는 저장된 기억으로 정한다(화면 회전·재시작에도 유지): 띄운 뒤 3시간, '오늘은 괜찮아요' 전까지. */
+    override val heartNudgeShown: Boolean get() {
+        val p = LifeRestPrefs(this); if (!p.heartNudge) return false
+        val m = p.nudgeMemory; val shown = m.lastShownAt ?: return false; val now = Instant.now()
+        return !now.isBefore(shown) && now.isBefore(shown.plus(HeartNudgePolicy.COOLDOWN)) && m.dismissedOn != java.time.LocalDate.now()
+    }
+    private var heartCheckJob: kotlinx.coroutines.Job? = null
     private val notificationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
         LifeRestPrefs(this).eveningReminder = granted; LifeRestAlarm.reschedule(this)
         if (!granted) shell.report("알림을 허용하지 않아 퇴근 알림을 켜지 않았어요. 홈 카드는 그대로 보여요.")
         refreshHome()
+    }
+    private val heartWritePermission = HealthPermission.getWritePermission(HeartRateRecord::class)
+    private val heartWritePermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
+        if (heartWritePermission in granted) debugWriteSyntheticHeart() else shell.report("심박 쓰기를 허용하지 않았어요.")
+    }
+    override fun debugWriteSyntheticHeart() {
+        check(isDebugBuild())
+        lifecycleScope.launch {
+            try {
+                val client = healthClient()
+                if (heartWritePermission !in client.permissionController.getGrantedPermissions()) { heartWritePermissions.launch(setOf(heartWritePermission)); return@launch }
+                val now = Instant.now()
+                val zone = java.time.ZoneId.systemDefault()
+                val records = mutableListOf<HeartRateRecord>()
+                // 7일 동안 한 시간마다 기록 하나(10분 간격 6개, 58~66bpm), 그리고 최근 10분은 1분마다 98bpm.
+                for (h in 168 downTo 1) {
+                    val start = now.minus(Duration.ofHours(h.toLong())).minus(Duration.ofMinutes(15))
+                    val samples = (0 until 6).map { HeartRateRecord.Sample(start.plus(Duration.ofMinutes(it * 10L)), (58 + (h + it) % 9).toLong()) }
+                    records += HeartRateRecord(start, zone.rules.getOffset(start), start.plus(Duration.ofMinutes(55)), zone.rules.getOffset(start), samples,
+                        androidx.health.connect.client.records.metadata.Metadata.manualEntry())
+                }
+                val recentStart = now.minus(Duration.ofMinutes(10))
+                records += HeartRateRecord(recentStart, zone.rules.getOffset(recentStart), now, zone.rules.getOffset(now),
+                    (0..9).map { HeartRateRecord.Sample(recentStart.plus(Duration.ofMinutes(it.toLong())), 98L) },
+                    androidx.health.connect.client.records.metadata.Metadata.manualEntry())
+                records.chunked(50).forEach { client.insertRecords(it) }
+                LifeRestPrefs(this@MainActivity).nudgeMemory = NudgeMemory()
+                shell.report("합성 심박 ${records.sumOf { it.samples.size }}개를 넣었어요. 홈으로 돌아가 다시 열면 제안을 확인해요.")
+                checkHeartNudge()
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { shell.report("합성 심박을 넣지 못했어요: ${e.javaClass.simpleName}") }
+        }
     }
     override fun setEveningReminder(on: Boolean) {
         if (on && !LifeRestAlarm.canNotify(this)) { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS); return }
@@ -211,7 +249,7 @@ class MainActivity : ComponentActivity(), PitApp {
 
     override fun setHeartNudge(on: Boolean) {
         val prefs = LifeRestPrefs(this)
-        if (!on) { prefs.heartNudge = false; heartNudgeShown = false; refreshHome(); return }
+        if (!on) { heartCheckJob?.cancel(); prefs.heartNudge = false; refreshHome(); return }
         lifecycleScope.launch {
             try {
                 val client = healthClient()
@@ -225,20 +263,26 @@ class MainActivity : ComponentActivity(), PitApp {
     override fun dismissHeartNudge() {
         val prefs = LifeRestPrefs(this)
         prefs.nudgeMemory = prefs.nudgeMemory.copy(dismissedOn = java.time.LocalDate.now())
-        heartNudgeShown = false; refreshHome()
+        refreshHome()
     }
 
     /** 사용자가 켠 경우에만, 앱을 열 때 최근 7일 심박과 운동을 읽어 제안 여부를 정한다. 읽은 기록은 저장하지 않는다. */
     private fun checkHeartNudge() {
         val prefs = LifeRestPrefs(this)
-        if (!prefs.heartNudge || heartNudgeShown) return
-        lifecycleScope.launch {
+        if (!prefs.heartNudge || heartCheckJob?.isActive == true) return
+        heartCheckJob = lifecycleScope.launch {
             try {
                 if (HealthConnectClient.getSdkStatus(this@MainActivity) != HealthConnectClient.SDK_AVAILABLE) return@launch
                 val client = HealthConnectClient.getOrCreate(this@MainActivity)
                 val granted = client.permissionController.getGrantedPermissions()
+                // 권한을 거둬 갔으면 카드가 떠 있어도 끈다.
                 if (heartPermission !in granted) { prefs.heartNudge = false; refreshHome(); return@launch }
-                val now = Instant.now(); val range = TimeRangeFilter.between(now.minus(HeartNudgePolicy.BASELINE_PERIOD), now)
+                if (heartNudgeShown) return@launch
+                // 오늘 닫았거나 쿨다운 중이면 7일치를 읽지 않는다.
+                val memory = prefs.nudgeMemory; val now = Instant.now()
+                if (memory.dismissedOn == java.time.LocalDate.now()) return@launch
+                memory.lastShownAt?.let { if (!now.isBefore(it) && now.isBefore(it.plus(HeartNudgePolicy.COOLDOWN))) return@launch }
+                val range = TimeRangeFilter.between(now.minus(HeartNudgePolicy.BASELINE_PERIOD), now)
                 val samples = mutableListOf<HrSample>(); var token: String? = null
                 do {
                     val res = client.readRecords(ReadRecordsRequest(HeartRateRecord::class, timeRangeFilter = range, pageToken = token))
@@ -256,8 +300,7 @@ class MainActivity : ComponentActivity(), PitApp {
                 }
                 val baseline = HeartNudgePolicy.baseline(samples, exercises, now)
                 val result = HeartNudgePolicy.decide(true, samples, exercises, baseline, prefs.nudgeMemory, now, java.time.ZoneId.systemDefault())
-                if (result == NudgeResult.SUGGEST) {
-                    heartNudgeShown = true
+                if (result == NudgeResult.SUGGEST && LifeRestPrefs(this@MainActivity).heartNudge) {
                     prefs.nudgeMemory = prefs.nudgeMemory.copy(lastShownAt = now)
                     refreshHome()
                 }

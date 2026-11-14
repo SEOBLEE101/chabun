@@ -466,7 +466,8 @@ class DeveloperScreen(shell: PhoneShell) : Screen(shell) {
         })
         c.addView(ui.list(
             ui.row("spark", "체험용 합성 운동 고르기", "건강 기록을 읽지 않는 걷기 20분") { app.act(CompanionAction.DEMO); report("합성 운동을 골랐어요. 운동 기록 함께 전하기에서 확인할 수 있어요.") },
-            ui.row("today", "인트로 다시 보기", "앱 시작 장면") { shell.pop(); shell.host.postDelayed({ shell.playIntro() }, 600) }
+            ui.row("today", "인트로 다시 보기", "앱 시작 장면") { shell.pop(); shell.host.postDelayed({ shell.playIntro() }, 600) },
+            ui.row("pulse", "합성 심박 넣기", "심박 쉼 제안 확인용 · Health Connect에 시험 기록을 써요") { app.debugWriteSyntheticHeart() }
         ))
         c.addView(ui.card(20f, 20f, 10f).apply {
             addView(ui.rowTitle("귀가 준비 시연 시계", 15f))

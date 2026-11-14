@@ -63,12 +63,13 @@ class LifeRestReceiver : BroadcastReceiver() {
         when (intent.action) {
             LifeRestAlarm.ACTION -> {
                 val prefs = LifeRestPrefs(context)
-                val today = LocalDate.now()
-                if (prefs.eveningReminder && prefs.commute.enabled && today.dayOfWeek in prefs.commute.days &&
-                    !prefs.dismissed(DayMoment.EVENING_COMMUTE, today)) LifeRestAlarm.show(context)
+                val now = LocalDateTime.now()
+                // 퇴근 창 안에서만 알린다(요일은 창이 속한 날로 판단: 00:10 퇴근의 23:55 알림, Doze로 늦게 온 알림).
+                val inWindow = runCatching { DayRhythmPolicy.momentAt(now, prefs.commute, null, null) == DayMoment.EVENING_COMMUTE }.getOrDefault(false)
+                if (prefs.eveningReminder && inWindow && !prefs.dismissed(DayMoment.EVENING_COMMUTE, LocalDate.now())) LifeRestAlarm.show(context)
                 LifeRestAlarm.reschedule(context)
             }
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> LifeRestAlarm.reschedule(context)
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_TIME_CHANGED -> LifeRestAlarm.reschedule(context)
         }
     }
 }

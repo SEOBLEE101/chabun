@@ -43,6 +43,8 @@ object LifeRestChecks {
         verify(R.momentAt(at(mon.minusDays(1), 23, 45), early, null, null) == DayMoment.MORNING_COMMUTE, "Sunday 23:45 is Monday's window")
         rejects { on.copy(days = emptySet()).validated() }
         rejects { on.copy(evening = LocalTime.of(9, 30)).validated() }
+        rejects { on.copy(morning = LocalTime.of(0, 10), evening = LocalTime.of(23, 30)).validated() } // 40 min apart round the clock
+        verify(on.copy(morning = LocalTime.of(1, 30), evening = LocalTime.of(23, 30)).validated().enabled, "2 h round the clock is fine")
         verify(CommuteSettings(enabled = false, days = emptySet()).validated().days.isEmpty(), "off may have no days")
         rejects { WorkoutPlan(mon, "swimming", LocalTime.of(19, 0)).validated() }
 
@@ -85,6 +87,9 @@ object LifeRestChecks {
         verify(R.nextReminder(at(fri, 19, 0), on) == at(mon.plusDays(7), 18, 15), "skips the weekend")
         verify(R.nextReminder(at(mon, 12, 0), on.copy(days = setOf(DayOfWeek.SUNDAY))) == at(mon.plusDays(6), 18, 15), "one day a week")
         verify(R.nextReminder(at(mon, 23, 50), late.copy(days = setOf(DayOfWeek.MONDAY))) == at(mon.plusDays(7), 23, 15), "late evening next week")
+        val pastMidnight = on.copy(morning = LocalTime.of(14, 0), evening = LocalTime.of(0, 10), days = setOf(DayOfWeek.MONDAY))
+        verify(R.nextReminder(at(mon.minusDays(1), 23, 56), pastMidnight) == at(mon.plusDays(6), 23, 55), "00:10 evening: next week's Sunday 23:55 is still found")
+        verify(R.momentAt(at(mon.minusDays(1), 23, 56), pastMidnight, null, null) == DayMoment.EVENING_COMMUTE, "Sunday 23:56 belongs to Monday's window")
 
         // ---- Warmup
         WORKOUT_TYPES.forEach { t ->
@@ -171,13 +176,22 @@ object LifeRestChecks {
         verify(full.addFavorite(Place("p1", "고침")).places.size == PlaceBook.MAX_PLACES, "update when full is fine")
         verify(full.visitsOn().recordUse(Place("p51", "넘침"), d).places.size == PlaceBook.MAX_PLACES, "full book ignores new visit")
         rejects { PlaceBook((1..51).map { Place("q$it", "곳") }, false) }
+        rejects { Place("manual:c", "줄\n바꿈").validated() }
+        rejects { Place("manual:c", "탭", "주\t소").validated() }
+        // 꽉 찬 책: 90일 넘게 안 쓴 비즐겨찾기 곳을 비우고 새 곳을 받는다
+        var crowded = PlaceBook.empty().visitsOn()
+        (1..PlaceBook.MAX_PLACES).forEach { crowded = crowded.recordUse(Place("o$it", "옛 곳 $it"), d.minusDays(200)) }
+        verify(crowded.places.size == PlaceBook.MAX_PLACES)
+        val fresh = crowded.recordUse(Place("new", "새 곳"), d)
+        verify(fresh.find("new")?.visits == 1 && fresh.places.size == 1, "full book prunes stale places for a new one")
         // 저장·복원
-        val tricky = Place("manual:x", "탭\t줄\n역\\슬래시", "주소", null, null, PlaceKind.SAUNA, favorite = true)
+        val tricky = Place("manual:x", "역\\슬래시 \"따옴표\"", "주소", null, null, PlaceKind.SAUNA, favorite = true)
         val enc = book.addFavorite(tricky).encode()
         val dec = PlaceBook.decode(enc)
         verify(dec.countVisits && dec.places == book.addFavorite(tricky).places, "round trip")
         verify(PlaceBook.decode(null).places.isEmpty() && PlaceBook.decode("garbage").places.isEmpty())
         verify(PlaceBook.decode(enc + "broken\tline\n").places.size == dec.places.size, "broken line skipped")
+        verify(PlaceBook.decode(enc.replace("\n", "\r\n")).places == dec.places, "CRLF tolerated")
         verify(PlaceBook.decode(enc.replace("placebook/1\t1", "placebook/1\t0")).countVisits.not())
         verify(PlaceKind.of("nope") == PlaceKind.OTHER && PlaceKind.of("park") == PlaceKind.PARK)
 

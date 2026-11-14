@@ -446,15 +446,16 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
             final RestPlace target = place;
             TextView go = k.primary(sent, place.buttonLabel(), () -> {
                 if (busy || navigating) return;
-                navigating = true;
+                navigating = true; message = "내비에 보내고 있어요."; render();
                 navigator().go(target, (ok, text) -> {
                     navigating = false; message = text;
-                    if (ok) command("clear_place", object("id", target.id)); else render();
+                    // A route was set: the card has done its job. A name search keeps the card until the driver clears it.
+                    if (ok && target.hasCoordinates()) command("clear_place", object("id", target.id)); else render();
                 });
             });
             go.setLayoutParams(withTop(CarKit.lp(-2, -2), 24));
             writes.add(go);
-            TextView drop = k.chip(sent, "지우기", () -> { if (!busy) command("clear_place", object("id", target.id)); });
+            TextView drop = k.chip(sent, "지우기", () -> { if (!busy && !navigating) command("clear_place", object("id", target.id)); });
             drop.setLayoutParams(withTop(CarKit.lp(-2, -2), 12));
             writes.add(drop);
         }
@@ -616,7 +617,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         if (p == null) return null;
         Double lat = p.isNull("lat") ? null : p.optDouble("lat", Double.NaN);
         Double lon = p.isNull("lon") ? null : p.optDouble("lon", Double.NaN);
-        return RestPlace.of(p.optString("id", null), p.optString("name", null), p.optString("address", ""), lat, lon);
+        return RestPlace.of(p.optString("id", null), p.optString("name", null), p.isNull("address") ? "" : p.optString("address", ""), lat, lon);
     }
     /** Builds that set the cabin when a rest starts: the car-connected build, and the demo build on its pretend car. */
     private static boolean cabinControl() { return BuildConfig.LIVE_CONTROL || BuildConfig.SIMULATED_VEHICLE; }

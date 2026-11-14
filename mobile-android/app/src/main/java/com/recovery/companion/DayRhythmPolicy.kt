@@ -24,7 +24,9 @@ data class CommuteSettings(
 ) {
     fun validated(): CommuteSettings {
         require(!enabled || days.isNotEmpty()) { "요일을 하루 이상 골라 주세요." }
-        require(Duration.between(morning, evening).abs() >= Duration.ofHours(2)) { "출근과 퇴근 시각은 두 시간 넘게 떨어져야 해요." }
+        // 시계는 둥글다: 00:10 출근과 23:30 퇴근은 40분 차이다.
+        val diff = Duration.between(morning, evening).abs()
+        require(minOf(diff, Duration.ofHours(24).minus(diff)) >= Duration.ofHours(2)) { "출근과 퇴근 시각은 두 시간 넘게 떨어져야 해요." }
         require(morningPresetId.isNotBlank() && eveningPresetId.isNotBlank())
         return this
     }
@@ -92,7 +94,7 @@ object DayRhythmPolicy {
     /** 퇴근 알림: 다음 켜진 요일의 퇴근 창 시작(퇴근 15분 전). 지금보다 뒤인 첫 시각, 없으면 null. */
     fun nextReminder(now: LocalDateTime, c: CommuteSettings): LocalDateTime? {
         if (!c.enabled || c.days.isEmpty()) return null
-        return (0L..7L).asSequence().map { now.toLocalDate().plusDays(it) }
+        return (0L..8L).asSequence().map { now.toLocalDate().plusDays(it) }
             .filter { it.dayOfWeek in c.days }
             .map { it.atTime(c.evening).minus(EVENING_BEFORE) }
             .firstOrNull { it.isAfter(now) }

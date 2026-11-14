@@ -25,6 +25,10 @@ public final class RestPlaceTest {
         check(RestPlace.of("phone-1", "곳", "", null, null) == null, "id prefix");
         check(RestPlace.of(null, "곳", "", null, null) == null, "null id");
         check(RestPlace.of("place-" + "x".repeat(60), "곳", "", null, null) == null, "long id");
+        check(RestPlace.of("place-5", "줄\n바꿈", "", null, null) == null, "control char in name");
+        check(RestPlace.of("place-5", "곳", "주\t소", null, null) == null, "control char in address");
+        check(RestPlace.of("place-", "곳", "", null, null) == null, "empty id suffix");
+        check(RestPlace.of("place-5", "곳", "", Double.POSITIVE_INFINITY, 127.0) == null, "infinite latitude");
         check(RestPlace.of("place-4", "곳", null, 33.0, 124.0) != null && RestPlace.of("place-4", "곳", null, 39.0, 132.0) != null, "range edges");
         System.out.println("PASS: " + assertions + " RestPlace assertions.");
     }

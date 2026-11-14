@@ -28,11 +28,17 @@ final class RestPlace {
         if (n.isEmpty() || n.length() > NAME_MAX) return null;
         String a = address == null ? "" : address.trim();
         if (a.length() > ADDRESS_MAX) return null;
+        if (hasControl(n) || hasControl(a) || id.length() == "place-".length()) return null;
         if ((lat == null) != (lon == null)) return null;
         if (lat != null) {
-            if (lat.isNaN() || lon.isNaN() || lat < 33.0 || lat > 39.0 || lon < 124.0 || lon > 132.0) return null;
+            if (lat.isNaN() || lon.isNaN() || lat.isInfinite() || lon.isInfinite() || lat < 33.0 || lat > 39.0 || lon < 124.0 || lon > 132.0) return null;
         }
         return new RestPlace(id, n, a, lat, lon);
+    }
+
+    private static boolean hasControl(String s) {
+        for (int i = 0; i < s.length(); i++) { char c = s.charAt(i); if (c < ' ' || c == 0x7f) return true; }
+        return false;
     }
 
     boolean hasCoordinates() { return lat != null && lon != null; }

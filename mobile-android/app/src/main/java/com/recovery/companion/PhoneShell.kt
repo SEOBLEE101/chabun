@@ -59,6 +59,8 @@ interface PitApp {
     fun dismissHeartNudge()
     /** 퇴근 알림(선택): 켤 때 Android 13+에서는 알림 권한을 묻는다. */
     fun setEveningReminder(on: Boolean)
+    /** 디버그 빌드만: Health Connect에 합성 심박(7일 평소 + 최근 10분 높게)을 넣는다. */
+    fun debugWriteSyntheticHeart()
 }
 
 /** 이 프로세스 안에서만 사는 귀가 준비 체험(합성 기기). */

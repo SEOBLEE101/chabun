@@ -37,7 +37,7 @@ fun momentCardFor(screen: Screen): View? {
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(4) })
         addView(ui.caption(HeartNudgePolicy.NOTE, size = 12f))
     }
-    if (moment == DayMoment.NONE || prefs.dismissed(moment, now.toLocalDate())) return null
+    if (moment == DayMoment.NONE || prefs.dismissed(moment, now.toLocalDate()) || prefs.dismissed(moment, now.toLocalDate().minusDays(1)) && now.toLocalTime().isBefore(java.time.LocalTime.of(2, 0))) return null
     val card = DayRhythmPolicy.card(moment, commute, plan) ?: return null
     return ui.sunken(24f, 20f, 18f, 8f).apply {
         addView(ui.overline("지금"))
@@ -55,7 +55,7 @@ fun momentCardFor(screen: Screen): View? {
                     shell.push(ShareScreen(shell))
                 })
             }
-            addView(ui.ghost("오늘은 닫기", screen.t.ink3, 14f) { prefs.dismiss(moment, now.toLocalDate()); screen.rebuild() })
+            addView(ui.ghost("오늘은 닫기", screen.t.ink3, 14f) { prefs.dismiss(moment, LocalDate.now()); screen.rebuild() })
             addView(ui.ghost("설정", screen.t.ink3, 14f) { shell.push(LifeRestScreen(shell)) })
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(4) })
     }
@@ -112,7 +112,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
                 rows += ui.row("today", "퇴근", "15분 전부터 한 시간쯤 ‘${presetName(s.eveningPresetId)}’", end = hm(s.evening)) {
                     pickTime(s.evening) { t -> save { prefs.commute = prefs.commute.copy(evening = t) } }
                 }
-                rows += ui.toggleRow("퇴근 무렵 알림", "퇴근 15분 전쯤 한 번 알려요. 10분쯤 늦을 수 있어요.", prefs.eveningReminder) { on -> app.setEveningReminder(on) }
+                rows += ui.toggleRow("퇴근 무렵 알림", "퇴근 15분 전쯤 한 번 알려요. 10분쯤 늦을 수 있어요.", prefs.eveningReminder && LifeRestAlarm.canNotify(ctx)) { on -> app.setEveningReminder(on) }
             }
             addView(ui.list(*rows.toTypedArray()))
             if (s.enabled) {
@@ -156,8 +156,10 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
                 addView(ui.flow().apply {
                     WORKOUT_TYPES.forEach { type ->
                         addView(ui.chip(DayRhythmPolicy.typeLabel(type), false, small = true) {
-                            val start = prefs.commute.evening.plusMinutes(60)
-                            pickTime(LocalTime.of(start.hour, 0)) { t -> save { prefs.setPlan(WorkoutPlan(LocalDate.now(), type, t)) } }
+                            val evening = prefs.commute.evening
+                            val suggested = if (evening.hour >= 23) LocalTime.of(23, 0) else LocalTime.of(evening.plusMinutes(60).hour, 0)
+                            val soon = LocalTime.now().plusMinutes(30).withSecond(0).withNano(0)
+                            pickTime(if (suggested.isBefore(LocalTime.now()) && soon.isAfter(LocalTime.now())) soon else suggested) { t -> save { prefs.setPlan(WorkoutPlan(LocalDate.now(), type, t)) } }
                         })
                     }
                 }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
@@ -182,8 +184,12 @@ class WarmupScreen(shell: PhoneShell, private val type: String) : Screen(shell) 
             val steps = WarmupGuide.steps(type)
             if (index !in steps.indices || stepView?.isAttachedToWindow != true) return
             left -= 1
-            if (left <= 0) { index += 1; if (index >= steps.size) { index = -2; rebuild(); return }; left = steps[index].seconds; rebuild() }
-            show(); stepView?.postDelayed(this, 1000)
+            if (left <= 0) {
+                index += 1
+                if (index >= steps.size) { index = -2; rebuild(); return }
+                left = steps[index].seconds; rebuild() // fill()이 show()를 한 번 부른다
+            } else show()
+            stepView?.postDelayed(this, 1000)
         }
     }
 
@@ -201,7 +207,7 @@ class WarmupScreen(shell: PhoneShell, private val type: String) : Screen(shell) 
             timeView = ui.num("", 34f, 400)
             addView(stepView); addView(timeView)
             addView(ui.primary(if (index >= 0) "그만하기" else "시작") {
-                if (index >= 0) { index = -1; rebuild() } else { index = 0; left = steps[0].seconds; rebuild(); stepView?.postDelayed(tick, 1000) }
+                stepView?.removeCallbacks(tick); if (index >= 0) { index = -1; rebuild() } else { index = 0; left = steps[0].seconds; rebuild(); stepView?.postDelayed(tick, 1000) }
             })
         })
         if (index >= 0) show()

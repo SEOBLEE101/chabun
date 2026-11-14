@@ -26,8 +26,10 @@ final class PlaceNavigatorFactory {
         private static final long TIMEOUT_MS = 20_000;
         private final Handler main = new Handler(Looper.getMainLooper());
         private final NaviHelper navi;
-        private boolean ready, closed;
+        private boolean ready, initializing, closed;
         private Callback pending;
+        private RestPlace waiting;
+        private long generation;
         private final Runnable timeout = () -> finish(false, "내비가 응답하지 않았어요. 내비 화면에서 직접 찾아 주세요.");
 
         PleosPlaceNavigator(Context context) { navi = new NaviHelper(context); }
@@ -37,50 +39,69 @@ final class PlaceNavigatorFactory {
         public void go(RestPlace place, Callback callback) {
             if (closed) { callback.done(false, "화면이 닫혀 길안내를 보내지 않았어요."); return; }
             if (pending != null) { callback.done(false, "앞의 요청을 기다리는 중이에요."); return; }
-            pending = callback;
+            pending = callback; waiting = place; generation++;
             main.postDelayed(timeout, TIMEOUT_MS);
-            Runnable send = () -> {
-                try {
-                    if (place.hasCoordinates()) {
-                        double[] p = place.latLon();
-                        navi.requestRoute(new RouteInfo(p[0], p[1], null, null, place.name, "", place.address, "",
-                                RouteOption.RECOMMENDED, "", false));
-                    } else {
-                        navi.requestNavigationScreen(new NavigationScreenRequest.SearchPlace(place.name));
-                        // A search screen has no routing callback: the driver picks the result there.
-                        finish(true, "내비에서 ‘" + place.name + "’을 찾았어요. 내비 화면에서 골라 주세요.");
-                    }
-                } catch (RuntimeException e) {
-                    finish(false, "내비에 요청하지 못했어요. 내비 화면에서 직접 찾아 주세요.");
-                }
-            };
-            if (ready) { send.run(); return; }
+            if (ready) { send(); return; }
+            if (initializing) return; // the running initialize sends the waiting place when it connects
+            initializing = true;
             try {
-                navi.initialize(() -> { main.post(() -> { if (closed) return; ready = true; navi.addListener(this); send.run(); }); return Unit.INSTANCE; },
-                        e -> { main.post(() -> finish(false, "이 차의 내비와 연결하지 못했어요. 내비 화면에서 직접 찾아 주세요.")); return Unit.INSTANCE; });
+                navi.initialize(() -> { main.post(this::connected); return Unit.INSTANCE; },
+                        e -> { main.post(() -> { initializing = false; finish(false, "이 차의 내비와 연결하지 못했어요. 내비 화면에서 직접 찾아 주세요."); }); return Unit.INSTANCE; });
             } catch (RuntimeException e) {
+                initializing = false;
                 finish(false, "이 차의 내비와 연결하지 못했어요. 내비 화면에서 직접 찾아 주세요.");
+            }
+        }
+
+        private void connected() {
+            initializing = false;
+            if (closed) return;
+            try { navi.addListener(this); ready = true; }
+            catch (RuntimeException e) { finish(false, "이 차의 내비와 연결하지 못했어요. 내비 화면에서 직접 찾아 주세요."); return; }
+            if (pending != null) send(); // a request that already timed out is not sent late
+        }
+
+        private void send() {
+            RestPlace place = waiting;
+            if (place == null) return;
+            try {
+                if (place.hasCoordinates()) {
+                    double[] p = place.latLon();
+                    navi.requestRoute(new RouteInfo(p[0], p[1], null, null, place.name, "", place.address, "",
+                            RouteOption.RECOMMENDED, "", false));
+                } else {
+                    navi.requestNavigationScreen(new NavigationScreenRequest.SearchPlace(place.name));
+                    // A search screen has no routing callback: the driver picks the result there.
+                    finish(true, "내비에서 ‘" + place.name + "’을 찾았어요. 내비 화면에서 골라 주세요.");
+                }
+            } catch (RuntimeException e) {
+                finish(false, "내비에 요청하지 못했어요. 내비 화면에서 직접 찾아 주세요.");
             }
         }
 
         private void finish(boolean ok, String message) {
             main.removeCallbacks(timeout);
-            Callback c = pending; pending = null;
+            Callback c = pending; pending = null; waiting = null;
             if (c != null) c.done(ok, message);
         }
 
-        @Override public void onRouteStarted(ai.pleos.playground.navi.data.RouteStartInfo info) { main.post(() -> finish(true, "길안내를 시작했어요. 내비 화면을 확인해 주세요.")); }
-        @Override public void onRoutingCompleted() { main.post(() -> finish(true, "길안내를 시작했어요. 내비 화면을 확인해 주세요.")); }
-        @Override public void onDestinationChanged() { main.post(() -> finish(true, "목적지를 바꿨어요. 내비 화면을 확인해 주세요.")); }
+        /** Navigation events carry no request id: only a request sent in this generation, still waiting, may finish. */
+        private void event(long seen, boolean ok, String message) { if (seen == generation && pending != null) finish(ok, message); }
+
+        @Override public void onRouteStarted(ai.pleos.playground.navi.data.RouteStartInfo info) { long g = generation; main.post(() -> event(g, true, "길안내를 시작했어요. 내비 화면을 확인해 주세요.")); }
+        @Override public void onRoutingCompleted() { long g = generation; main.post(() -> event(g, true, "길안내를 시작했어요. 내비 화면을 확인해 주세요.")); }
+        @Override public void onDestinationChanged() { long g = generation; main.post(() -> event(g, true, "목적지를 바꿨어요. 내비 화면을 확인해 주세요.")); }
         @Override public void onError(NaviErrorCode code) {
-            main.post(() -> finish(false, code == NaviErrorCode.CAUSE_SEARCH_ROUTE_TOO_SHORT_DISTANCE
+            long g = generation;
+            main.post(() -> event(g, false, code == NaviErrorCode.CAUSE_SEARCH_ROUTE_TOO_SHORT_DISTANCE
                     ? "너무 가까워 길안내를 만들지 않았어요." : "내비가 길을 찾지 못했어요. 내비 화면에서 직접 찾아 주세요."));
         }
 
         public void close() {
             if (closed) return;
-            closed = true; main.removeCallbacks(timeout); pending = null;
-            try { if (ready) navi.removeListener(this); navi.release(); } catch (RuntimeException ignored) { }
+            closed = true; main.removeCallbacks(timeout); pending = null; waiting = null;
+            try { if (ready) navi.removeListener(this); } catch (RuntimeException ignored) { }
+            try { navi.release(); } catch (RuntimeException ignored) { }
         }
     }
     private PlaceNavigatorFactory() { }

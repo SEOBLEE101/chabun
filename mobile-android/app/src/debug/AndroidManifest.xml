@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug only: 개발자 설정 › 합성 심박 넣기 (심박 쉼 제안을 에뮬레이터에서 확인). Release/submission builds never declare it. -->
+    <uses-permission android:name="android.permission.health.WRITE_HEART_RATE" />
     <application android:networkSecurityConfig="@xml/network_security_config" />
 </manifest>

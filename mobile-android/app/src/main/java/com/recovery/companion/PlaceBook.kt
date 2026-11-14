@@ -31,6 +31,7 @@ data class Place(
         require(id.isNotBlank() && id.length <= 64 && id.none { it == '\t' || it == '\n' }) { "장소 ID가 올바르지 않아요." }
         val n = name.trim()
         require(n.length in 1..PlaceBook.NAME_MAX) { "장소 이름은 1~${PlaceBook.NAME_MAX}자로 적어 주세요." }
+        require(n.none { it < ' ' || it == '\u007f' } && address.none { it < ' ' || it == '\u007f' }) { "줄바꿈이나 특수 문자는 넣을 수 없어요." }
         require(address.length <= PlaceBook.ADDRESS_MAX) { "주소가 너무 길어요." }
         require((lat == null) == (lon == null)) { "좌표는 위도와 경도가 함께 있어야 해요." }
         if (lat != null && lon != null) require(lat in 33.0..39.0 && lon in 124.0..132.0) { "국내 좌표만 저장해요." }
@@ -122,7 +123,7 @@ class PlaceBook(places: List<Place>, val countVisits: Boolean) {
 
         /** 깨진 줄은 건너뛰고, 머리줄이 다르면 빈 책으로 시작한다(저장된 데이터가 앱을 멈추지 않게). */
         fun decode(text: String?): PlaceBook {
-            val lines = text?.split('\n')?.filter { it.isNotEmpty() } ?: return empty()
+            val lines = text?.split('\n')?.map { it.trimEnd('\r') }?.filter { it.isNotEmpty() } ?: return empty()
             val head = lines.firstOrNull()?.split('\t') ?: return empty()
             if (head.size != 2 || head[0] != FORMAT) return empty()
             val list = lines.drop(1).mapNotNull { line ->

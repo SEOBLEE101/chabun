@@ -56,7 +56,8 @@ export function createPresetSyncService({storeFile=null,tls,now=Date.now,browser
   const secureServer=httpsServer(tls), browserServer=httpServer();
   const store=openPreferenceStore(storeFile,engine),sessions=new Map(),pairings=new Map();
   let attempts=[];
-  const searches=new WeakMap();
+  const searches=new WeakMap();let allSearches=[];
+  const kakaoKey=typeof kakaoRestKey==='string' && kakaoRestKey.trim() ? kakaoRestKey.trim() : null;
   const sync=actor=>({epoch,deviceId:actor.deviceId,role:actor.role,expiresAt:new Date(actor.expiresAt).toISOString()});
   function cleanup(){const time=now();for(const [k,v] of sessions)if(v.expiresAt<=time)sessions.delete(k);for(const [k,v] of pairings)if(v.expiresAt<=time)pairings.delete(k);attempts=attempts.filter(t=>time-t<60000);}
   function authorize(req,secure,pending=false) {
@@ -151,16 +152,19 @@ export function createPresetSyncService({storeFile=null,tls,now=Date.now,browser
         // Query text only: no coordinates are accepted or sent, and neither the query nor the key is ever logged.
         fail(secure,'TLS_REQUIRED','네이티브 연결에는 HTTPS가 필요해요.',403);
         fail(actor.role==='phone','ROLE_FORBIDDEN','폰에서만 장소를 찾을 수 있어요.',403);
-        fail(kakaoRestKey,'PLACES_UNAVAILABLE','장소 검색이 아직 준비되지 않았어요.',503);
+        fail(kakaoKey,'PLACES_UNAVAILABLE','장소 검색이 아직 준비되지 않았어요.',503);
         const p=await body(req);actor=authorize(req,secure).actor;fields(p,['query','kind']);
         fail(typeof p.query==='string' && p.query.trim().length>=1 && p.query.trim().length<=40 && !/[\u0000-\u001f\u007f]/.test(p.query),'INVALID_SEARCH','검색어는 1~40자로 입력해 주세요.');
         fail(placeKinds.includes(p.kind),'INVALID_SEARCH','장소 종류를 확인해 주세요.');
         const time=now(),recent=(searches.get(actor)??[]).filter(t=>time-t<60000);
-        fail(recent.length<30,'SEARCH_LIMIT','검색이 많아요. 잠시 뒤 다시 해 주세요.',429);recent.push(time);searches.set(actor,recent);
+        fail(recent.length<30,'SEARCH_LIMIT','검색이 많아요. 잠시 뒤 다시 해 주세요.',429);
+        // Re-pairing makes a new session, so the whole service also has a ceiling.
+        allSearches=allSearches.filter(t=>time-t<60000);fail(allSearches.length<120,'SEARCH_LIMIT','검색이 많아요. 잠시 뒤 다시 해 주세요.',429);
+        recent.push(time);searches.set(actor,recent);allSearches.push(time);
         let docs;
         try {
           const url=kakaoSearch+'?query='+encodeURIComponent(p.query.trim())+'&size=15'+(p.kind==='cafe'?'&category_group_code=CE7':'');
-          const response=await fetchImpl(url,{headers:{Authorization:'KakaoAK '+kakaoRestKey},signal:AbortSignal.timeout(5000)});
+          const response=await fetchImpl(url,{headers:{Authorization:'KakaoAK '+kakaoKey},signal:AbortSignal.timeout(5000)});
           if(!response.ok)throw new Error('upstream');
           docs=(await response.json())?.documents;if(!Array.isArray(docs))throw new Error('upstream');
         } catch {throw new ContinuityError('PLACES_FAILED','장소를 찾지 못했어요. 잠시 뒤 다시 해 주세요.',502);}
