@@ -126,6 +126,14 @@ object LifeRestChecks {
         verify(H.decide(true, atThreshold, emptyList(), base, mem, now, zone) == NudgeResult.SUGGEST, "threshold inclusive")
         val spike = series(now.minus(Duration.ofMinutes(9)), 10, 60) { if (it < 6) 70 else 120 }
         verify(H.decide(true, spike, emptyList(), base, mem, now, zone) == NudgeResult.NOT_ELEVATED, "short spike is not sustained")
+        val earlyBurst = (0L until 5L).map { HrSample(now.minusSeconds(570 - it * 10), 95) }
+        verify(H.decide(true, earlyBurst, emptyList(), base, mem, now, zone) == NudgeResult.NOT_ENOUGH_DATA, "40 s burst is not an 8 min run")
+        val recovered = earlyBurst + listOf(HrSample(now.minusSeconds(300), 65), HrSample(now.minusSeconds(60), 64))
+        verify(H.decide(true, recovered, emptyList(), base, mem, now, zone) != NudgeResult.SUGGEST, "recovered heart rate does not suggest")
+        val watchOff = series(now.minus(Duration.ofMinutes(10)), 6, 60) { 100 } // last sample 5 min ago
+        verify(H.decide(true, watchOff, emptyList(), base, mem, now, zone) == NudgeResult.NOT_ENOUGH_DATA, "no recent sample: watch off")
+        val sixOfTen = series(now.minus(Duration.ofMinutes(9)), 10, 60) { if (it < 4) 70 else 95 }
+        verify(H.decide(true, sixOfTen, emptyList(), base, mem, now, zone) == NudgeResult.NOT_ELEVATED, "median high but share 0.6")
         val short = series(now.minus(Duration.ofMinutes(7)), 8, 60) { 100 }
         verify(H.decide(true, short, emptyList(), base, mem, now, zone) == NudgeResult.NOT_ENOUGH_DATA, "needs 8 min span")
         verify(H.decide(true, high.take(4), emptyList(), base, mem, now, zone) == NudgeResult.NOT_ENOUGH_DATA, "needs 5 samples")

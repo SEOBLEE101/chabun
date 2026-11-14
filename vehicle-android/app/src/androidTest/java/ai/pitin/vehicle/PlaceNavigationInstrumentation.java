@@ -34,7 +34,7 @@ public final class PlaceNavigationInstrumentation extends Instrumentation {
                 boolean called = done.await(25, TimeUnit.SECONDS);
                 report.append(p.routeKind()).append(" live=").append(nav.get().live()).append(" → ")
                         .append(called ? answer.get() : "NO CALLBACK in 25 s").append('\n');
-                if (!called) code = Activity.RESULT_CANCELED;
+                if (!called || !answer.get().startsWith("OK ")) code = Activity.RESULT_CANCELED;
                 runOnMainSync(() -> nav.get().close());
                 Thread.sleep(3000);
             }

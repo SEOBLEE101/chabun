@@ -61,6 +61,8 @@ interface PitApp {
     fun setEveningReminder(on: Boolean)
     /** 디버그 빌드만: Health Connect에 합성 심박(7일 평소 + 최근 10분 높게)을 넣는다. */
     fun debugWriteSyntheticHeart()
+    /** 오늘 운동 계획 무렵 끝난 운동의 끝 시각(계획이 있고 운동 읽기를 허용한 경우만). */
+    val plannedWorkoutEnd: Instant?
 }
 
 /** 이 프로세스 안에서만 사는 귀가 준비 체험(합성 기기). */

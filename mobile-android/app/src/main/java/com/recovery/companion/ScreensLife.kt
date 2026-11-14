@@ -23,7 +23,7 @@ fun momentCardFor(screen: Screen): View? {
     val now = LocalDateTime.now()
     val plan = prefs.plan(now)
     val commute = prefs.commute
-    val lastEnd = app.workout?.end?.let { LocalDateTime.ofInstant(it, ZoneId.systemDefault()) }
+    val lastEnd = listOfNotNull(app.workout?.end, app.plannedWorkoutEnd).maxOrNull()?.let { LocalDateTime.ofInstant(it, ZoneId.systemDefault()) }
     val moment = runCatching { DayRhythmPolicy.momentAt(now, commute, plan, lastEnd) }.getOrDefault(DayMoment.NONE)
     if (app.heartNudgeShown) return ui.sunken(24f, 20f, 18f, 8f).apply {
         addView(ui.overline("지금"))
@@ -81,7 +81,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
         ))
         c.addView(ui.vstack(6f).apply {
             addView(ui.sectionHead("워치 신호", "선택"))
-            addView(ui.list(ui.toggleRow("심박이 높게 이어질 때 쉼 제안", "앱을 열 때만 최근 심박을 읽어요. 기록은 저장하지 않아요.", prefs.heartNudge) { on -> app.setHeartNudge(on) }))
+            addView(ui.list(ui.toggleRow("심박이 높게 이어질 때 쉼 제안", "앱을 열 때만 최근 심박을 읽어요(운동 중 심박은 빼요). 기록은 저장하지 않아요.", prefs.heartNudge) { on -> app.setHeartNudge(on) }))
             addView(ui.caption(HeartNudgePolicy.NOTE), LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
         })
         statusLine = ui.status().also { c.addView(it) }
@@ -164,7 +164,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
                     }
                 }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
             }
-            addView(ui.caption("오늘 하루만 기억하고, 날이 바뀌면 지워요."), LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
+            addView(ui.caption("오늘 하루만 기억하고, 날이 바뀌면 지워요. 운동 읽기를 허용했다면 앱을 열 때 운동이 끝났는지 확인해요."), LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
         })
     }
 

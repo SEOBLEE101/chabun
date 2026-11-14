@@ -157,7 +157,7 @@ export class ContinuityEngine {
         keys(p, ['place']); this.state.devices.vehicle.place = { id: 'place-' + randomUUID(), ...validatePlace(p.place) };
         this.event('phone', '폰에서 쉬어 갈 곳을 차량에 보냈어요. 길안내는 차량 화면에서 직접 시작해요.'); break;
       case 'clear_place':
-        keys(p, ['id']); need(typeof p.id === 'string', 'INVALID_ID', '장소를 다시 확인해 주세요.');
+        keys(p, ['id']); need(typeof p.id === 'string' && /^place-[0-9a-f-]{36}$/i.test(p.id), 'INVALID_ID', '장소를 다시 확인해 주세요.');
         need(this.state.devices.vehicle.place?.id === p.id, 'PLACE_CHANGED', '쉬어 갈 곳이 바뀌었어요. 최신 내용을 확인해 주세요.', 409);
         this.state.devices.vehicle.place = null; this.event('vehicle', '차량에서 쉬어 갈 곳을 확인했어요.'); break;
       case 'accept_vehicle':

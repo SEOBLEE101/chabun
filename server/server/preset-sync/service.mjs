@@ -142,6 +142,8 @@ export function createPresetSyncService({storeFile=null,tls,now=Date.now,browser
         // A rest with its 차 안 설정 comes from the phone only (not the local web page, which may run other commands).
         if(p.action==='propose_rest')fail(actor.role==='phone','ROLE_FORBIDDEN','폰에서만 쉼을 차에 보낼 수 있어요.',403);
         if(p.action==='propose_place')fail(actor.role==='phone','ROLE_FORBIDDEN','폰에서만 쉬어 갈 곳을 차에 보낼 수 있어요.',403);
+        // Only the car confirms a place: the local web page may not clear what the phone sent.
+        if(p.action==='clear_place')fail(actor.role==='vehicle','ROLE_FORBIDDEN','차량 화면에서만 쉬어 갈 곳을 지울 수 있어요.',403);
         if(actor.role!=='web' && ['begin_rest','accept_vehicle'].includes(p.action))fail(p.payload?.origin===actor.role,'ROLE_FORBIDDEN','자신의 화면 역할로만 요청할 수 있어요.',403);
         fail(p.expectedEpoch===epoch,'EPOCH_CONFLICT','서버 세션이 바뀌었어요. 최신 내용을 확인해 주세요.',409);
         fail(typeof p.requestId==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.requestId),'INVALID_REQUEST_ID','요청 UUID를 확인해 주세요.');
@@ -154,7 +156,7 @@ export function createPresetSyncService({storeFile=null,tls,now=Date.now,browser
         fail(actor.role==='phone','ROLE_FORBIDDEN','폰에서만 장소를 찾을 수 있어요.',403);
         fail(kakaoKey,'PLACES_UNAVAILABLE','장소 검색이 아직 준비되지 않았어요.',503);
         const p=await body(req);actor=authorize(req,secure).actor;fields(p,['query','kind']);
-        fail(typeof p.query==='string' && p.query.trim().length>=1 && p.query.trim().length<=40 && !/[\u0000-\u001f\u007f]/.test(p.query),'INVALID_SEARCH','검색어는 1~40자로 입력해 주세요.');
+        fail(typeof p.query==='string' && p.query.length<=120 && p.query.isWellFormed() && p.query.trim().length>=1 && p.query.trim().length<=40 && !/[\u0000-\u001f\u007f]/.test(p.query),'INVALID_SEARCH','검색어는 1~40자로 입력해 주세요.');
         fail(placeKinds.includes(p.kind),'INVALID_SEARCH','장소 종류를 확인해 주세요.');
         const time=now(),recent=(searches.get(actor)??[]).filter(t=>time-t<60000);
         fail(recent.length<30,'SEARCH_LIMIT','검색이 많아요. 잠시 뒤 다시 해 주세요.',429);

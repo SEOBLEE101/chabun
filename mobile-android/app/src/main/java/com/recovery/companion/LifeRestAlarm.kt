@@ -39,8 +39,9 @@ object LifeRestAlarm {
         am.setWindow(AlarmManager.RTC_WAKEUP, next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), WINDOW_MS, pi)
     }
 
-    fun canNotify(ctx: Context): Boolean = Build.VERSION.SDK_INT < 33 ||
-        ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    fun canNotify(ctx: Context): Boolean =
+        (Build.VERSION.SDK_INT < 33 || ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
+            ctx.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() != false
 
     fun show(ctx: Context) {
         if (!canNotify(ctx)) return

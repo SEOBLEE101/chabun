@@ -23,6 +23,9 @@ object HeartNudgePolicy {
     val WINDOW: Duration = Duration.ofMinutes(10)
     /** 창 안 첫 기록이 적어도 이만큼 전이어야 '이어졌다'고 본다. */
     val MIN_SPAN: Duration = Duration.ofMinutes(8)
+    /** 마지막 기록이 이보다 오래되면(워치를 벗었거나 회복) 지금 이어지는 것으로 보지 않는다. */
+    val MAX_GAP_TO_NOW: Duration = Duration.ofMinutes(3)
+    val RECENT: Duration = Duration.ofMinutes(5)
     const val WINDOW_MIN_SAMPLES = 5
     const val ELEVATED_SHARE = 0.7
     /** 운동이 끝난 뒤 이 시간 동안의 심박은 운동 때문일 수 있어 쓰지 않는다. */
@@ -58,11 +61,15 @@ object HeartNudgePolicy {
         val from = now.minus(WINDOW)
         if (exercises.any { it.start.isBefore(now) && it.end.plus(AFTER_EXERCISE).isAfter(from) }) return NudgeResult.EXERCISE
         val window = samples.filter { !it.time.isBefore(from) && !it.time.isAfter(now) && it.bpm in PLAUSIBLE }.sortedBy { it.time }
-        if (window.size < WINDOW_MIN_SAMPLES || window.first().time.isAfter(now.minus(MIN_SPAN))) return NudgeResult.NOT_ENOUGH_DATA
+        if (window.size < WINDOW_MIN_SAMPLES || Duration.between(window.first().time, window.last().time) < MIN_SPAN ||
+            window.last().time.isBefore(now.minus(MAX_GAP_TO_NOW))) return NudgeResult.NOT_ENOUGH_DATA
         val threshold = baseline + RISE_BPM
         val sorted = window.map { it.bpm }.sorted()
         val median = if (sorted.size % 2 == 1) sorted[sorted.size / 2].toDouble() else (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2.0
         val share = window.count { it.bpm >= threshold }.toDouble() / window.size
-        return if (median >= threshold && share >= ELEVATED_SHARE) NudgeResult.SUGGEST else NudgeResult.NOT_ELEVATED
+        // 지금도 이어지는지: 최근 5분의 중앙값도 기준 이상이어야 한다(9분 전 잠깐 오른 뒤 회복한 경우 제외).
+        val recent = window.filter { !it.time.isBefore(now.minus(RECENT)) }.map { it.bpm }.sorted()
+        val recentMedian = if (recent.isEmpty()) 0.0 else if (recent.size % 2 == 1) recent[recent.size / 2].toDouble() else (recent[recent.size / 2 - 1] + recent[recent.size / 2]) / 2.0
+        return if (median >= threshold && share >= ELEVATED_SHARE && recentMedian >= threshold) NudgeResult.SUGGEST else NudgeResult.NOT_ELEVATED
     }
 }

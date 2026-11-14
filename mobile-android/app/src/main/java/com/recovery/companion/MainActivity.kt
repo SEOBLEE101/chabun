@@ -172,6 +172,7 @@ class MainActivity : ComponentActivity(), PitApp {
         super.onResume()
         refreshHealthAccess()
         checkHeartNudge()
+        checkPlannedWorkout()
         foreground = true
         appearanceSync.start(::updateAppearance)
         expireRevocationIfNeeded()
@@ -266,13 +267,34 @@ class MainActivity : ComponentActivity(), PitApp {
         refreshHome()
     }
 
+    override var plannedWorkoutEnd: Instant? = null; private set
+    /** 오늘 운동 계획이 있고 운동 읽기를 이미 허용했을 때만: 계획 무렵 끝난 운동의 끝 시각 하나만 기억한다(요약·전송에는 쓰지 않는다). */
+    private fun checkPlannedWorkout() {
+        val plan = LifeRestPrefs(this).plan(java.time.LocalDateTime.now()) ?: run { plannedWorkoutEnd = null; return }
+        lifecycleScope.launch {
+            try {
+                if (HealthConnectClient.getSdkStatus(this@MainActivity) != HealthConnectClient.SDK_AVAILABLE) return@launch
+                val client = HealthConnectClient.getOrCreate(this@MainActivity)
+                if (exercisePermission !in client.permissionController.getGrantedPermissions()) return@launch
+                val zone = java.time.ZoneId.systemDefault(); val now = Instant.now()
+                val from = plan.startAt().minus(DayRhythmPolicy.WORKOUT_EARLY_SLACK).atZone(zone).toInstant()
+                if (!from.isBefore(now)) return@launch
+                val origin = if (PitPrefs(this@MainActivity).healthSource == "samsung") setOf(DataOrigin("com.sec.android.app.shealth")) else emptySet()
+                val res = client.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, timeRangeFilter = TimeRangeFilter.between(from, now), dataOriginFilter = origin))
+                val end = res.records.map { it.endTime }.filter { !it.isAfter(now) }.maxOrNull()
+                if (end != plannedWorkoutEnd) { plannedWorkoutEnd = end; refreshHome() }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { }
+        }
+    }
+
     /** 사용자가 켠 경우에만, 앱을 열 때 최근 7일 심박과 운동을 읽어 제안 여부를 정한다. 읽은 기록은 저장하지 않는다. */
     private fun checkHeartNudge() {
         val prefs = LifeRestPrefs(this)
         if (!prefs.heartNudge || heartCheckJob?.isActive == true) return
         heartCheckJob = lifecycleScope.launch {
             try {
-                if (HealthConnectClient.getSdkStatus(this@MainActivity) != HealthConnectClient.SDK_AVAILABLE) return@launch
+                if (HealthConnectClient.getSdkStatus(this@MainActivity) != HealthConnectClient.SDK_AVAILABLE) { prefs.heartNudge = false; refreshHome(); return@launch }
                 val client = HealthConnectClient.getOrCreate(this@MainActivity)
                 val granted = client.permissionController.getGrantedPermissions()
                 // 권한을 거둬 갔으면 카드가 떠 있어도 끈다.
@@ -298,8 +320,10 @@ class MainActivity : ComponentActivity(), PitApp {
                         token = res.pageToken
                     } while (!token.isNullOrEmpty())
                 }
-                val baseline = HeartNudgePolicy.baseline(samples, exercises, now)
-                val result = HeartNudgePolicy.decide(true, samples, exercises, baseline, prefs.nudgeMemory, now, java.time.ZoneId.systemDefault())
+                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    val baseline = HeartNudgePolicy.baseline(samples, exercises, now)
+                    HeartNudgePolicy.decide(true, samples, exercises, baseline, prefs.nudgeMemory, now, java.time.ZoneId.systemDefault())
+                }
                 if (result == NudgeResult.SUGGEST && LifeRestPrefs(this@MainActivity).heartNudge) {
                     prefs.nudgeMemory = prefs.nudgeMemory.copy(lastShownAt = now)
                     refreshHome()
