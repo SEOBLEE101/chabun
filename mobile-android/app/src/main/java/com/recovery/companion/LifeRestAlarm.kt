@@ -11,7 +11,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -23,7 +22,6 @@ object LifeRestAlarm {
     const val ACTION = "com.recovery.companion.LIFE_REST_REMINDER"
     private const val CHANNEL = "life_rest"
     private const val NOTIFICATION_ID = 4107
-    private const val WINDOW_MS = 10 * 60_000L
 
     private fun pending(ctx: Context): PendingIntent = PendingIntent.getBroadcast(ctx, 7,
         Intent(ctx, LifeRestReceiver::class.java).setAction(ACTION), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -36,7 +34,8 @@ object LifeRestAlarm {
         val prefs = LifeRestPrefs(ctx)
         if (!prefs.eveningReminder) return
         val next = DayRhythmPolicy.nextReminder(LocalDateTime.now(), prefs.commute) ?: return
-        am.setWindow(AlarmManager.RTC_WAKEUP, next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), WINDOW_MS, pi)
+        // 절전(Doze) 중에도 울리게 하되 정확한 알람은 쓰지 않는다(몇 분 늦을 수 있음).
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), pi)
     }
 
     fun canNotify(ctx: Context): Boolean =
@@ -67,7 +66,8 @@ class LifeRestReceiver : BroadcastReceiver() {
                 val now = LocalDateTime.now()
                 // 퇴근 창 안에서만 알린다(요일은 창이 속한 날로 판단: 00:10 퇴근의 23:55 알림, Doze로 늦게 온 알림).
                 val inWindow = runCatching { DayRhythmPolicy.momentAt(now, prefs.commute, null, null) == DayMoment.EVENING_COMMUTE }.getOrDefault(false)
-                if (prefs.eveningReminder && inWindow && !prefs.dismissed(DayMoment.EVENING_COMMUTE, LocalDate.now())) LifeRestAlarm.show(context)
+                val anchor = DayRhythmPolicy.anchorOf(now, prefs.commute, null, DayMoment.EVENING_COMMUTE)
+                if (prefs.eveningReminder && inWindow && anchor != null && !prefs.dismissed(DayMoment.EVENING_COMMUTE, anchor)) LifeRestAlarm.show(context)
                 LifeRestAlarm.reschedule(context)
             }
             Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_TIME_CHANGED -> LifeRestAlarm.reschedule(context)

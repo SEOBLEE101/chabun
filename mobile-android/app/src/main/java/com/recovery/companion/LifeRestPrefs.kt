@@ -47,8 +47,11 @@ class LifeRestPrefs(context: Context) {
     }
 
     var placeBook: PlaceBook
-        get() = PlaceBook.decode(p.getString("places", null))
+        get() = PlaceBook.decode(p.getString("places", null)).pruned(LocalDate.now())
         set(v) { p.edit().putString("places", v.encode()).apply() }
+
+    /** 운동 계획이 있거나 심박 제안을 켰으면 앱을 열 때 운동 시간을 읽는다(개인정보 문구에 쓴다). */
+    fun readsExerciseOnOpen(): Boolean = heartNudge || plan(LocalDateTime.now()) != null
 
     var eveningReminder: Boolean
         get() = p.getBoolean("eveningReminder", false)

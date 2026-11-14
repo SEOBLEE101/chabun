@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <queries><package android:name="com.google.android.apps.healthdata" /></queries>
-    <application android:icon="@mipmap/pitin_app_icon" android:label="${appLabel}" android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@style/Theme.PitIn">
+    <application android:icon="@mipmap/pitin_app_icon" android:label="${appLabel}" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:usesCleartextTraffic="false" android:theme="@style/Theme.PitIn">
         <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -227,6 +227,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
     @Override public void onDestroy() {
         // The approved link stays in process memory (PresetLink); only this screen's view state goes.
         if (placeNavigator != null) { placeNavigator.close(); placeNavigator = null; }
+        if (placeEnvironment != null) { placeEnvironment.close(); placeEnvironment = null; }
         link.removeListener(this);
         state = null; uncertain = null; revocation.clear();
         network.shutdownNow(); super.onDestroy();
@@ -409,7 +410,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         prepare.setVisibility(state == null ? View.GONE : View.VISIBLE);
         preparationHint.setVisibility(state == null ? View.GONE : View.VISIBLE);
         String contentKey = state == null ? revoking ? "revoking" : link.token != null ? "waiting" : "disconnected"
-                : policy.epoch + ":" + detailsExpanded + ":" + state.toString();
+                : policy.epoch + ":" + detailsExpanded + ":" + placeNote + ":" + state.toString();
         if (contentKey.equals(renderedContentKey)) { updateWriteButtons(); return; }
         renderedContentKey = contentKey;
         content.removeAllViews(); writes.clear();
@@ -444,16 +445,26 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
             k.title(sent, place.name, 36).setLayoutParams(withTop(CarKit.lp(-2, -2), 16));
             k.body(sent, place.summary()).setLayoutParams(withTop(CarKit.lp(-1, -2), 12));
             final RestPlace target = place;
+            if (placeEnvironment == null && navigator().live()) { placeEnvironment = VehicleEnvironmentFactory.create(this); placeEnvironment.refresh(); }
             TextView go = k.primary(sent, place.buttonLabel(), () -> {
                 if (busy || navigating) return;
-                navigating = true; message = "내비에 보내고 있어요."; render();
-                navigator().go(target, (ok, text) -> {
-                    navigating = false; message = text;
-                    // A route was set: the card has done its job. A name search keeps the card until the driver clears it.
-                    if (ok && target.hasCoordinates()) command("clear_place", object("id", target.id)); else render();
-                });
+                navigating = true; placeNote = "주차 상태를 확인하고 있어요."; render();
+                if (placeEnvironment != null) placeEnvironment.refresh();
+                // The car state is read on a background thread: decide a moment after asking for a fresh sample.
+                main.postDelayed(() -> {
+                    if (isDestroyed()) return;
+                    if (!parkedForRoute()) { navigating = false; placeNote = "주차하고 멈춘 뒤에 내비로 보낼 수 있어요. 주차 상태를 확인하지 못했으면 잠시 뒤 다시 눌러 주세요."; render(); return; }
+                    placeNote = "내비에 보내고 있어요."; render();
+                    navigator().go(target, (ok, text) -> {
+                        navigating = false; placeNote = text; message = text;
+                        // A route was set: the card has done its job. A name search keeps the card until the driver clears it.
+                        if (ok && target.hasCoordinates()) command("clear_place", object("id", target.id)); else render();
+                    });
+                }, 700);
             });
             go.setLayoutParams(withTop(CarKit.lp(-2, -2), 24));
+            // The card keeps its own note: the status line above is rewritten by every 4 s read.
+            if (placeNote != null) k.caption(sent, placeNote).setLayoutParams(withTop(CarKit.lp(-1, -2), 12));
             writes.add(go);
             TextView drop = k.chip(sent, "지우기", () -> { if (!busy && !navigating) command("clear_place", object("id", target.id)); });
             drop.setLayoutParams(withTop(CarKit.lp(-2, -2), 12));
@@ -607,7 +618,16 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
             case "needs_review": return "다시 확인 필요"; default: return "상태 미확인"; }
     }
     private PlaceNavigator placeNavigator;
+    private VehicleEnvironment placeEnvironment;
     private boolean navigating;
+    private String placeNote;
+    /** The demo build hands nothing to a navigation, so it needs no gate; live builds read the car's own gear and speed. */
+    private boolean parkedForRoute() {
+        if (!navigator().live()) return true;
+        if (placeEnvironment == null) { placeEnvironment = VehicleEnvironmentFactory.create(this); return false; }
+        long now = SystemClock.elapsedRealtime();
+        return RestPlace.parkedForRoute(placeEnvironment.snapshot(now), now);
+    }
     private PlaceNavigator navigator() {
         if (placeNavigator == null) placeNavigator = PlaceNavigatorFactory.create(this);
         return placeNavigator;

@@ -37,7 +37,8 @@ fun momentCardFor(screen: Screen): View? {
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(4) })
         addView(ui.caption(HeartNudgePolicy.NOTE, size = 12f))
     }
-    if (moment == DayMoment.NONE || prefs.dismissed(moment, now.toLocalDate()) || prefs.dismissed(moment, now.toLocalDate().minusDays(1)) && now.toLocalTime().isBefore(java.time.LocalTime.of(2, 0))) return null
+    val anchor = DayRhythmPolicy.anchorOf(now, commute, plan, moment)
+    if (moment == DayMoment.NONE || anchor == null || prefs.dismissed(moment, anchor)) return null
     val card = DayRhythmPolicy.card(moment, commute, plan) ?: return null
     return ui.sunken(24f, 20f, 18f, 8f).apply {
         addView(ui.overline("지금"))
@@ -55,7 +56,7 @@ fun momentCardFor(screen: Screen): View? {
                     shell.push(ShareScreen(shell))
                 })
             }
-            addView(ui.ghost("오늘은 닫기", screen.t.ink3, 14f) { prefs.dismiss(moment, LocalDate.now()); screen.rebuild() })
+            addView(ui.ghost("오늘은 닫기", screen.t.ink3, 14f) { prefs.dismiss(moment, anchor); screen.rebuild() })
             addView(ui.ghost("설정", screen.t.ink3, 14f) { shell.push(LifeRestScreen(shell)) })
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(4) })
     }
@@ -81,7 +82,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
         ))
         c.addView(ui.vstack(6f).apply {
             addView(ui.sectionHead("워치 신호", "선택"))
-            addView(ui.list(ui.toggleRow("심박이 높게 이어질 때 쉼 제안", "앱을 열 때만 최근 심박을 읽어요(운동 중 심박은 빼요). 기록은 저장하지 않아요.", prefs.heartNudge) { on -> app.setHeartNudge(on) }))
+            addView(ui.list(ui.toggleRow("심박이 높게 이어질 때 쉼 제안", "앱을 열 때만 최근 심박과 운동 시간을 읽어요(운동 중·직후는 빼요). 기록은 저장하지 않아요.", prefs.heartNudge) { on -> app.setHeartNudge(on) }))
             addView(ui.caption(HeartNudgePolicy.NOTE), LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
         })
         statusLine = ui.status().also { c.addView(it) }
@@ -102,7 +103,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
         val s = prefs.commute
         c.addView(ui.vstack(6f).apply {
             addView(ui.sectionHead("출퇴근"))
-            val rows = mutableListOf<View>(ui.toggleRow("출퇴근 때 쉼 제안", "출근 전 30분, 퇴근 무렵 1시간 동안 홈에 보여요", s.enabled) { on ->
+            val rows = mutableListOf<View>(ui.toggleRow("출퇴근 때 쉼 제안", "출근 앞뒤 30분, 퇴근 15분 전부터 1시간쯤 홈에 보여요", s.enabled) { on ->
                 save { prefs.commute = s.copy(enabled = on) }
             })
             if (s.enabled) {
@@ -159,12 +160,12 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
                             val evening = prefs.commute.evening
                             val suggested = if (evening.hour >= 23) LocalTime.of(23, 0) else LocalTime.of(evening.plusMinutes(60).hour, 0)
                             val soon = LocalTime.now().plusMinutes(30).withSecond(0).withNano(0)
-                            pickTime(if (suggested.isBefore(LocalTime.now()) && soon.isAfter(LocalTime.now())) soon else suggested) { t -> save { prefs.setPlan(WorkoutPlan(LocalDate.now(), type, t)) } }
+                            pickTime(if (suggested.isBefore(LocalTime.now()) && soon.isAfter(LocalTime.now())) soon else suggested) { t -> save { prefs.setPlan(WorkoutPlan(DayRhythmPolicy.planDateFor(LocalDateTime.now(), t), type, t)) } }
                         })
                     }
                 }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
             }
-            addView(ui.caption("오늘 하루만 기억하고, 날이 바뀌면 지워요. 운동 읽기를 허용했다면 앱을 열 때 운동이 끝났는지 확인해요."), LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
+            addView(ui.caption("오늘 하루만 기억해요(밤 운동은 계획 3시간 뒤까지). 운동 읽기를 허용했다면 앱을 열 때 운동이 끝났는지 확인해요."), LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
         })
     }
 
@@ -233,6 +234,7 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
     private var query = ""
     private var results: List<Place> = emptyList()
     private var searching = false
+    private var searchNote: String? = null
 
     override fun onStateChanged() {}
 
@@ -244,7 +246,7 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
             addView(ui.display("마음 놓이는\n곳을 모아요", 30f))
             addView(ui.body("산책로·공원·카페처럼 운동 말고도 숨 돌리는 곳이요."))
         })
-        c.addView(ui.list(ui.toggleRow("자주 가는 곳 기억하기", "‘여기 왔어요’를 누른 횟수만 세요. 위치는 읽지 않아요.", book.countVisits) { on ->
+        c.addView(ui.list(ui.toggleRow("자주 가는 곳 기억하기", "‘여기 왔어요’나 ‘차로 보내기’를 누른 횟수만 세요. 위치는 읽지 않아요.", book.countVisits) { on ->
             prefs.placeBook = if (on) prefs.placeBook.visitsOn() else prefs.placeBook.visitsOff(); rebuild()
         }))
         val frequent = book.frequent(today)
@@ -264,7 +266,12 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
                 addView(ui.body("연결 › 취향 함께 쓰기를 이으면 동네 이름으로 장소를 찾고 차로 보낼 수 있어요.", 14f))
             } else {
                 addView(field(query, "예: 성수 카페, 한강 산책로", "찾을 말") { query = it }, LinearLayout.LayoutParams(-1, ui.dp(56)))
+                addView(ui.flow().apply {
+                    PlaceKind.entries.forEach { k -> addView(ui.chip(k.label, k == kind, small = true) { kind = k; rebuild() }) }
+                })
                 addView(ui.secondary(if (searching) "찾고 있어요" else "${kind.label}로 찾기", 48f, 15f) { search() })
+                // 결과·오류는 버튼 바로 아래에(긴 화면 맨 아래 상태 줄은 안 보일 수 있다)
+                searchNote?.let { addView(ui.body(it, 14f, t.ink)) }
                 addView(ui.caption("적은 말과 종류만 서버로 보내요. 지금 위치는 읽지도 보내지도 않아요."))
                 if (results.isNotEmpty()) addView(ui.list(*results.map { placeRow(it) }.toTypedArray()))
             }
@@ -301,10 +308,11 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
         if (searching) return
         searching = true; rebuild()
         ctx.lifecycleScope.launch {
-            try { results = PlaceSync.search(ctx, query, kind); if (results.isEmpty()) report("찾은 곳이 없어요. 다른 말로 찾아 주세요.") }
+            searchNote = null
+            try { results = PlaceSync.search(ctx, query, kind); if (results.isEmpty()) searchNote = "찾은 곳이 없어요. 다른 말로 찾아 주세요." }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: IllegalArgumentException) { report(e.message ?: "찾지 못했어요.") }
-            catch (_: Exception) { report("서버에 닿지 못했어요. 연결 상태를 확인해 주세요.") }
+            catch (e: IllegalArgumentException) { results = emptyList(); searchNote = e.message ?: "찾지 못했어요." }
+            catch (_: Exception) { results = emptyList(); searchNote = "서버에 닿지 못했어요. 연결 상태를 확인해 주세요." }
             searching = false; rebuild()
         }
     }

@@ -15,6 +15,8 @@ function fields(value,allowed) {fail(value!==null && typeof value==='object' && 
 const vehicleActions=new Set(['select_preset','set_default','propose_vehicle','begin_rest','accept_vehicle','clear_place']);
 const phoneActions=new Set(['select_preset','set_feeling','set_default','save_preset','delete_preset','begin_rest','propose_vehicle','propose_rest','propose_place','arm_arrival','update_arrival','cancel_arrival','advance_time','confirm_home','set_home_manual','set_target_online']);
 const placeKinds=['park','cafe','bookstore','sauna','other'];
+// The place the phone sent is for the car: the local web page sees only that one exists, not its name or position.
+const viewFor=(actor,state)=>{if(actor.role!=='web' || !state?.devices?.vehicle?.place)return state;return {...state,devices:{...state.devices,vehicle:{...state.devices.vehicle,place:{sent:true}}}};};
 const kakaoSearch='https://dapi.kakao.com/v2/local/search/keyword.json';
 // Upstream text is shortened in UTF-16 units (matching propose_place) without leaving half an emoji.
 const cut=(value,max)=>{if(typeof value!=='string')return '';let t=value.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,max);if(/[\uD800-\uDBFF]$/.test(t))t=t.slice(0,-1);return t.trim();};
@@ -135,7 +137,7 @@ export function createPresetSyncService({storeFile=null,tls,now=Date.now,browser
         reportAppearance(actor,p,epoch,now());
         return json(res,200,{appearance:appearanceView(sessions,now()),sync:sync(actor),acknowledgedRequestId:p.requestId});
       }
-      if(route==='/state' && method==='GET')return json(res,200,{state:engine.getState(),sync:sync(actor)});
+      if(route==='/state' && method==='GET')return json(res,200,{state:viewFor(actor,engine.getState()),sync:sync(actor)});
       if(route==='/commands' && method==='POST') {
         const p=await body(req);actor=authorize(req,secure).actor;fields(p,['action','expectedEpoch','expectedRevision','requestId','payload']);
         fail(actor.role==='web' || (actor.role==='phone'?phoneActions:vehicleActions).has(p.action),'ROLE_FORBIDDEN','이 화면에서는 해당 작업을 할 수 없어요.',403);
@@ -148,7 +150,7 @@ export function createPresetSyncService({storeFile=null,tls,now=Date.now,browser
         fail(p.expectedEpoch===epoch,'EPOCH_CONFLICT','서버 세션이 바뀌었어요. 최신 내용을 확인해 주세요.',409);
         fail(typeof p.requestId==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.requestId),'INVALID_REQUEST_ID','요청 UUID를 확인해 주세요.');
         const {expectedEpoch,...command}=p;const state=engine.execute(command,{actor,commit:store.commit});
-        return json(res,200,{state,sync:sync(actor),acknowledgedRequestId:p.requestId});
+        return json(res,200,{state:viewFor(actor,state),sync:sync(actor),acknowledgedRequestId:p.requestId});
       }
       if(route==='/places/search' && method==='POST') {
         // Query text only: no coordinates are accepted or sent, and neither the query nor the key is ever logged.

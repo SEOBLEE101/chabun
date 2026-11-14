@@ -59,15 +59,18 @@ class MainActivity : ComponentActivity(), PitApp {
     }
     private val heartPermission = HealthPermission.getReadPermission(HeartRateRecord::class)
     private val heartPermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
-        if (heartPermission in granted) { LifeRestPrefs(this).heartNudge = true; checkHeartNudge() }
-        else { LifeRestPrefs(this).heartNudge = false; shell.report("심박 읽기를 허용하지 않아 켜지 않았어요.") }
+        if (heartPermission in granted && exercisePermission in granted) { LifeRestPrefs(this).heartNudge = true; checkHeartNudge() }
+        else { LifeRestPrefs(this).heartNudge = false; shell.report("심박과 운동 읽기를 모두 허용해야 켤 수 있어요. 운동 직후에는 제안하지 않으려고 운동 시간도 읽어요.") }
         refreshHome()
     }
     /** 제안 카드는 저장된 기억으로 정한다(화면 회전·재시작에도 유지): 띄운 뒤 3시간, '오늘은 괜찮아요' 전까지. */
     override val heartNudgeShown: Boolean get() {
         val p = LifeRestPrefs(this); if (!p.heartNudge) return false
         val m = p.nudgeMemory; val shown = m.lastShownAt ?: return false; val now = Instant.now()
-        return !now.isBefore(shown) && now.isBefore(shown.plus(HeartNudgePolicy.COOLDOWN)) && m.dismissedOn != java.time.LocalDate.now()
+        // '오늘은 괜찮아요'는 그 카드가 뜬 날부터 유효하다(23:00 카드를 닫고 자정이 지나도 다시 뜨지 않게).
+        val shownDay = shown.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        val dismissed = m.dismissedOn != null && !m.dismissedOn.isBefore(shownDay)
+        return !now.isBefore(shown) && now.isBefore(shown.plus(HeartNudgePolicy.COOLDOWN)) && !dismissed
     }
     private var heartCheckJob: kotlinx.coroutines.Job? = null
     private val notificationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
@@ -80,7 +83,7 @@ class MainActivity : ComponentActivity(), PitApp {
         if (heartWritePermission in granted) debugWriteSyntheticHeart() else shell.report("심박 쓰기를 허용하지 않았어요.")
     }
     override fun debugWriteSyntheticHeart() {
-        check(isDebugBuild())
+        if (!isDebugBuild()) return
         lifecycleScope.launch {
             try {
                 val client = healthClient()
@@ -173,6 +176,7 @@ class MainActivity : ComponentActivity(), PitApp {
         refreshHealthAccess()
         checkHeartNudge()
         checkPlannedWorkout()
+        LifeRestAlarm.reschedule(this)
         foreground = true
         appearanceSync.start(::updateAppearance)
         expireRevocationIfNeeded()
@@ -254,8 +258,9 @@ class MainActivity : ComponentActivity(), PitApp {
         lifecycleScope.launch {
             try {
                 val client = healthClient()
-                if (heartPermission in client.permissionController.getGrantedPermissions()) { prefs.heartNudge = true; checkHeartNudge(); refreshHome() }
-                else heartPermissions.launch(setOf(heartPermission))
+                val granted = client.permissionController.getGrantedPermissions()
+                if (heartPermission in granted && exercisePermission in granted) { prefs.heartNudge = true; checkHeartNudge(); refreshHome() }
+                else heartPermissions.launch(setOf(heartPermission, exercisePermission))
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { prefs.heartNudge = false; shell.report(e.message ?: "Health Connect를 열지 못했어요."); refreshHome() }
         }
@@ -298,7 +303,7 @@ class MainActivity : ComponentActivity(), PitApp {
                 val client = HealthConnectClient.getOrCreate(this@MainActivity)
                 val granted = client.permissionController.getGrantedPermissions()
                 // 권한을 거둬 갔으면 카드가 떠 있어도 끈다.
-                if (heartPermission !in granted) { prefs.heartNudge = false; refreshHome(); return@launch }
+                if (heartPermission !in granted || exercisePermission !in granted) { prefs.heartNudge = false; refreshHome(); return@launch }
                 if (heartNudgeShown) return@launch
                 // 오늘 닫았거나 쿨다운 중이면 7일치를 읽지 않는다.
                 val memory = prefs.nudgeMemory; val now = Instant.now()
@@ -312,7 +317,7 @@ class MainActivity : ComponentActivity(), PitApp {
                     token = res.pageToken
                 } while (!token.isNullOrEmpty())
                 val exercises = mutableListOf<Span>()
-                if (exercisePermission in granted) {
+                run {
                     token = null
                     do {
                         val res = client.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, timeRangeFilter = range, pageToken = token))

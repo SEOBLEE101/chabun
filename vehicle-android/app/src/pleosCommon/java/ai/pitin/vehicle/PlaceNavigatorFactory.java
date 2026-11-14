@@ -30,7 +30,13 @@ final class PlaceNavigatorFactory {
         private Callback pending;
         private RestPlace waiting;
         private long generation;
-        private final Runnable timeout = () -> finish(false, "내비가 응답하지 않았어요. 내비 화면에서 직접 찾아 주세요.");
+        private boolean listening;
+        /** On a timeout the listener is taken off, so a late answer to that request cannot finish the next one. */
+        private final Runnable timeout = this::timedOut;
+        private void timedOut() {
+            finish(false, "내비가 응답하지 않았어요. 내비 화면에서 직접 찾아 주세요.");
+            if (listening) { try { navi.removeListener(this); } catch (RuntimeException ignored) { } listening = false; }
+        }
 
         PleosPlaceNavigator(Context context) { navi = new NaviHelper(context); }
 
@@ -56,7 +62,7 @@ final class PlaceNavigatorFactory {
         private void connected() {
             initializing = false;
             if (closed) return;
-            try { navi.addListener(this); ready = true; }
+            try { navi.addListener(this); listening = true; ready = true; }
             catch (RuntimeException e) { finish(false, "이 차의 내비와 연결하지 못했어요. 내비 화면에서 직접 찾아 주세요."); return; }
             if (pending != null) send(); // a request that already timed out is not sent late
         }
@@ -65,6 +71,7 @@ final class PlaceNavigatorFactory {
             RestPlace place = waiting;
             if (place == null) return;
             try {
+                if (!listening) { navi.addListener(this); listening = true; }
                 if (place.hasCoordinates()) {
                     double[] p = place.latLon();
                     navi.requestRoute(new RouteInfo(p[0], p[1], null, null, place.name, "", place.address, "",
@@ -85,7 +92,7 @@ final class PlaceNavigatorFactory {
             if (c != null) c.done(ok, message);
         }
 
-        /** Navigation events carry no request id: only a request sent in this generation, still waiting, may finish. */
+        /** Navigation events carry no request id: an event only finishes a request that is still waiting (best effort). */
         private void event(long seen, boolean ok, String message) { if (seen == generation && pending != null) finish(ok, message); }
 
         @Override public void onRouteStarted(ai.pleos.playground.navi.data.RouteStartInfo info) { long g = generation; main.post(() -> event(g, true, "길안내를 시작했어요. 내비 화면을 확인해 주세요.")); }
@@ -100,7 +107,7 @@ final class PlaceNavigatorFactory {
         public void close() {
             if (closed) return;
             closed = true; main.removeCallbacks(timeout); pending = null; waiting = null;
-            try { if (ready) navi.removeListener(this); } catch (RuntimeException ignored) { }
+            try { if (listening) navi.removeListener(this); } catch (RuntimeException ignored) { }
             try { navi.release(); } catch (RuntimeException ignored) { }
         }
     }

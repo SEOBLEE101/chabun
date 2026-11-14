@@ -58,7 +58,22 @@ object DayRhythmPolicy {
     val PLAN_GRACE: Duration = Duration.ofHours(3)
     fun planExpiresAt(plan: WorkoutPlan): LocalDateTime = maxOf(plan.date.plusDays(1).atStartOfDay(), plan.startAt().plus(PLAN_GRACE))
     fun activePlan(plan: WorkoutPlan?, now: LocalDateTime): WorkoutPlan? =
-        plan?.takeIf { !now.toLocalDate().isBefore(it.date) && now.isBefore(planExpiresAt(it)) }
+        plan?.takeIf { !now.isBefore(it.date.minusDays(1).atStartOfDay()) && now.isBefore(planExpiresAt(it)) }
+
+    /** 저녁 8시 넘어 지금보다 2시간 넘게 이른 시각을 고르면 내일 새벽 운동으로 본다(23:40에 00:15 고르기). */
+    fun planDateFor(now: LocalDateTime, start: LocalTime): LocalDate =
+        if (now.hour >= 20 && start.isBefore(now.toLocalTime().minusHours(2))) now.toLocalDate().plusDays(1) else now.toLocalDate()
+
+    /** 그 카드가 속한 날: 출퇴근은 창의 기준일(00:20의 금요일 퇴근 창이면 금요일), 웜업·운동 뒤는 계획한 날. '오늘은 닫기'는 이 날짜로 기록한다. */
+    fun anchorOf(now: LocalDateTime, commute: CommuteSettings, plan: WorkoutPlan?, moment: DayMoment): LocalDate? = when (moment) {
+        DayMoment.WARMUP, DayMoment.AFTER_WORKOUT -> plan?.date
+        DayMoment.EVENING_COMMUTE -> commuteAnchor(now, commute, commute.evening, EVENING_BEFORE, EVENING_AFTER)
+        DayMoment.MORNING_COMMUTE -> commuteAnchor(now, commute, commute.morning, MORNING_BEFORE, MORNING_AFTER)
+        DayMoment.NONE -> null
+    }
+
+    private fun commuteAnchor(now: LocalDateTime, c: CommuteSettings, time: LocalTime, before: Duration, after: Duration): LocalDate? =
+        (-1L..1L).map { now.toLocalDate().plusDays(it) }.firstOrNull { it.dayOfWeek in c.days && inWindow(now, it.atTime(time), before, after) }
 
     /**
      * 지금이 어떤 때인지. 우선순위: 운동 뒤 > 웜업 > 퇴근 > 출근.

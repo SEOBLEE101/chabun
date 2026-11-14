@@ -221,6 +221,7 @@ test('the car clears the place it saw; a stale id answers 409 PLACE_CHANGED', as
   const second = (await f.command('propose_place', place({ name: '북카페' }), f.phone)).body.state.devices.vehicle.place;
   assert.equal((await f.command('clear_place', { id: second.id }, f.phone)).status, 403, 'the phone cannot clear');
   assert.equal((await f.command('clear_place', { id: 'place-x' }, f.vehicle)).status, 400, 'malformed id is a bad request');
+  assert.deepEqual((await f.state()).state.devices.vehicle.place, { sent: true }, 'the web page does not see the place name or position');
   const stale = await f.command('clear_place', { id: first.id }, f.vehicle);
   assert.equal(stale.status, 409); assert.equal(stale.body.error.code, 'PLACE_CHANGED');
   assert.deepEqual(stale.body.state.devices.vehicle.place, second, 'conflict carries the latest state');

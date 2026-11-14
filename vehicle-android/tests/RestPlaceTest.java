@@ -30,6 +30,13 @@ public final class RestPlaceTest {
         check(RestPlace.of("place-", "곳", "", null, null) == null, "empty id suffix");
         check(RestPlace.of("place-5", "곳", "", Double.POSITIVE_INFINITY, 127.0) == null, "infinite latitude");
         check(RestPlace.of("place-4", "곳", null, 33.0, 124.0) != null && RestPlace.of("place-4", "곳", null, 39.0, 132.0) != null, "range edges");
+        long now = 100_000;
+        check(RestPlace.parkedForRoute(new SafetyGate.Snapshot(false, SafetyGate.Gear.PARK, 0.0, false, false, true, now - 1000), now), "parked and stopped");
+        check(!RestPlace.parkedForRoute(new SafetyGate.Snapshot(false, SafetyGate.Gear.DRIVE, 0.0, false, false, true, now), now), "drive");
+        check(!RestPlace.parkedForRoute(new SafetyGate.Snapshot(false, SafetyGate.Gear.PARK, 3.0, false, false, true, now), now), "moving");
+        check(!RestPlace.parkedForRoute(new SafetyGate.Snapshot(false, SafetyGate.Gear.PARK, null, false, false, true, now), now), "speed unknown");
+        check(!RestPlace.parkedForRoute(new SafetyGate.Snapshot(false, SafetyGate.Gear.PARK, 0.0, false, false, true, now - SafetyGate.MAX_STATE_AGE_MS), now), "stale");
+        check(!RestPlace.parkedForRoute(null, now), "no state");
         System.out.println("PASS: " + assertions + " RestPlace assertions.");
     }
 }

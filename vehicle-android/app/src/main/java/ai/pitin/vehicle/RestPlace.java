@@ -41,6 +41,14 @@ final class RestPlace {
         return false;
     }
 
+    /** Navigation is handed over only when the car reports Park and zero speed in a fresh sample (SafetyGate's own snapshot). */
+    static boolean parkedForRoute(SafetyGate.Snapshot s, long nowMs) {
+        if (s == null) return false;
+        long age = nowMs - s.sampledAtMs;
+        return age >= 0 && age < SafetyGate.MAX_STATE_AGE_MS && s.gear == SafetyGate.Gear.PARK
+                && s.speedKph != null && Double.isFinite(s.speedKph) && s.speedKph == 0.0;
+    }
+
     boolean hasCoordinates() { return lat != null && lon != null; }
 
     /** What the car asks the navigation for: a route to the point when there are coordinates, else a name search. */
