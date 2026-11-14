@@ -73,7 +73,7 @@ class HealthScreen(shell: PhoneShell) : Screen(shell) {
         c.addView(ui.vstack(10f).apply {
             addView(ui.h2("읽는 것", 17f))
             addView(ui.pills("운동 종류", "운동 시간", "마친 시각"))
-            addView(ui.caption("심박, 위치, 수면, 몸무게는 읽지 않아요. 차로 보낼지는 그때마다 따로 물어봐요."))
+            addView(ui.caption("위치, 수면, 몸무게는 읽지 않아요. 심박은 하루 쉼 › 워치 신호를 켠 경우에만 앱을 열 때 읽고 저장하지 않아요. 차로 보낼지는 그때마다 따로 물어봐요."))
         })
         spacer(c)
         if (state == HealthState.GRANTED) c.addView(ui.caption("연결을 끊으려면 Health Connect 설정에서 차분의 권한을 꺼 주세요.").apply { gravity = Gravity.CENTER })

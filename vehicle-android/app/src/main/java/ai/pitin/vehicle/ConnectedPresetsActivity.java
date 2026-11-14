@@ -221,11 +221,14 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
     }
     @Override public void onStop() {
         policy.stop(); link.exitForeground(); busy = false; reading = false; main.removeCallbacks(poll);
+        // A park check still waiting is dropped with the screen (a request already handed to the navigation keeps going).
+        if (pendingRouteCheck != null) { main.removeCallbacks(pendingRouteCheck); pendingRouteCheck = null; navigating = false; placeNote = null; }
         if (revocation.pending()) message = PendingRevocation.message(PendingRevocation.Outcome.PENDING);
         super.onStop();
     }
     @Override public void onDestroy() {
         // The approved link stays in process memory (PresetLink); only this screen's view state goes.
+        if (pendingRouteCheck != null) { main.removeCallbacks(pendingRouteCheck); pendingRouteCheck = null; }
         if (placeNavigator != null) { placeNavigator.close(); placeNavigator = null; }
         if (placeEnvironment != null) { placeEnvironment.close(); placeEnvironment = null; }
         link.removeListener(this);
@@ -410,7 +413,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         prepare.setVisibility(state == null ? View.GONE : View.VISIBLE);
         preparationHint.setVisibility(state == null ? View.GONE : View.VISIBLE);
         String contentKey = state == null ? revoking ? "revoking" : link.token != null ? "waiting" : "disconnected"
-                : policy.epoch + ":" + detailsExpanded + ":" + placeNote + ":" + state.toString();
+                : policy.epoch + ":" + detailsExpanded + ":" + placeNote + ":" + navigating + ":" + state.toString();
         if (contentKey.equals(renderedContentKey)) { updateWriteButtons(); return; }
         renderedContentKey = contentKey;
         content.removeAllViews(); writes.clear();
@@ -437,6 +440,12 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         seenProposalId = proposal == null ? null : proposal.optString("id", null);
 
         RestPlace place = placeFrom(vehicle == null ? null : vehicle.optJSONObject("place"));
+        String placeId = place == null ? null : place.id;
+        if (!java.util.Objects.equals(placeId, seenPlaceId)) {
+            // A different place (or none): the old note and any waiting park check belong to the old one.
+            seenPlaceId = placeId; placeNote = null;
+            if (pendingRouteCheck != null) { main.removeCallbacks(pendingRouteCheck); pendingRouteCheck = null; navigating = false; }
+        }
         if (place != null) {
             // A place the phone sent: name, address and maybe coordinates, no visit history. Navigation starts only here.
             LinearLayout sent = section();
@@ -451,8 +460,10 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
                 navigating = true; placeNote = "주차 상태를 확인하고 있어요."; render();
                 if (placeEnvironment != null) placeEnvironment.refresh();
                 // The car state is read on a background thread: decide a moment after asking for a fresh sample.
-                main.postDelayed(() -> {
-                    if (isDestroyed()) return;
+                if (pendingRouteCheck != null) main.removeCallbacks(pendingRouteCheck);
+                pendingRouteCheck = () -> {
+                    pendingRouteCheck = null;
+                    if (isDestroyed() || isFinishing() || busy || !policy.canWrite() || !target.id.equals(seenPlaceId)) { navigating = false; render(); return; }
                     if (!parkedForRoute()) { navigating = false; placeNote = "주차하고 멈춘 뒤에 내비로 보낼 수 있어요. 주차 상태를 확인하지 못했으면 잠시 뒤 다시 눌러 주세요."; render(); return; }
                     placeNote = "내비에 보내고 있어요."; render();
                     navigator().go(target, (ok, text) -> {
@@ -462,10 +473,11 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
                         if (ok && target.hasCoordinates()) { pendingClearPlaceId = target.id; flushPendingClear(); }
                         render();
                     });
-                }, 700);
+                };
+                main.postDelayed(pendingRouteCheck, 700);
             });
             go.setLayoutParams(withTop(CarKit.lp(-2, -2), 24));
-            // The card keeps its own note: the status line above is rewritten by every 4 s read.
+            // The card keeps its own note: the status line above is rewritten by every read.
             if (placeNote != null) k.caption(sent, placeNote).setLayoutParams(withTop(CarKit.lp(-1, -2), 12));
             writes.add(go);
             TextView drop = k.chip(sent, "지우기", () -> { if (!busy && !navigating) command("clear_place", object("id", target.id)); });
@@ -575,7 +587,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         return b;
     }
     private void updateWriteButtons() {
-        boolean available = policy.canWrite() && !busy && !revocation.pending();
+        boolean available = policy.canWrite() && !busy && !navigating && !revocation.pending();
         for (View button : writes) CarKit.enable(button, available);
         CarKit.enable(prepare, available && preparationSnapshot != null);
     }
@@ -623,6 +635,8 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
     private VehicleEnvironment placeEnvironment;
     private boolean navigating;
     private String placeNote;
+    private String seenPlaceId;
+    private Runnable pendingRouteCheck;
     /** Process memory: the navigation screen may replace this screen, so the clear waits for the next read of any instance. */
     private static String pendingClearPlaceId;
     /** Sends the clear for a place whose route started, once this screen can write again; drops it if the place changed. */
@@ -633,8 +647,8 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         JSONObject place = car == null ? null : car.optJSONObject("place");
         if (place == null || !pendingClearPlaceId.equals(place.optString("id"))) { pendingClearPlaceId = null; return; }
         if (!policy.canWrite() || busy) return;
-        String id = pendingClearPlaceId; pendingClearPlaceId = null;
-        command("clear_place", object("id", id));
+        // Kept until a later read no longer shows the place, so a failed clear is tried again on the next read.
+        command("clear_place", object("id", pendingClearPlaceId));
     }
     /** The demo build hands nothing to a navigation, so it needs no gate; live builds read the car's own gear and speed. */
     private boolean parkedForRoute() {

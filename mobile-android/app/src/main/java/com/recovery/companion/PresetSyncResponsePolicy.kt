@@ -39,7 +39,7 @@ object PresetSyncResponsePolicy {
         integer(home["revision"]); bool(home["online"]); str(home["updatedBy"]); time(home["observedAt"])
         val car=obj(devices["vehicle"]); bool(car["parked"]); require(car["simulated"]==true)
         car["proposal"]?.let(::preset); car["confirmedPresetId"]?.let { str(it,80) }
-        car["place"]?.let { val p=obj(it); str(p["id"],64); str(p["name"],40) }
+        car["place"]?.let { val p=obj(it); if (p["sent"]!=true) { str(p["id"],64); str(p["name"],40); require((p["address"] as? String)?.let { a -> a.length<=120 } ?: false); require((p["lat"]==null)==(p["lon"]==null)) } }
         s["plan"]?.let {
             val p=obj(it); str(p["id"],80); integer(p["version"],1); str(p["presetId"],80); str(p["presetName"],40)
             require(preset(p["presetSnapshot"])==p["presetId"]); require(p["targetId"]=="home-ac")

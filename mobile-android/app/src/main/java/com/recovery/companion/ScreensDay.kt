@@ -113,7 +113,7 @@ class ChabunDayScreen(shell: PhoneShell) : Screen(shell) {
                 rows += ui.row("today", "퇴근", "15분 전부터 한 시간쯤 ‘${presetName(s.eveningPresetId)}’", end = hm(s.evening)) {
                     pickTime(s.evening) { t -> save { prefs.commute = prefs.commute.copy(evening = t) } }
                 }
-                rows += ui.toggleRow("퇴근 무렵 알림", "퇴근 15분 전쯤 한 번 알려요. 10분쯤 늦을 수 있어요.", prefs.eveningReminder && ChabunDayAlarm.canNotify(ctx)) { on -> app.setEveningReminder(on) }
+                rows += ui.toggleRow("퇴근 무렵 알림", "퇴근 15분 전쯤 한 번 알려요. 폰이 쉬는 중이면 몇 분 늦을 수 있어요.", prefs.eveningReminder && ChabunDayAlarm.canNotify(ctx)) { on -> app.setEveningReminder(on) }
             }
             addView(ui.list(*rows.toTypedArray()))
             if (s.enabled) {
@@ -183,7 +183,9 @@ class WarmupScreen(shell: PhoneShell, private val type: String) : Screen(shell) 
     private val tick = object : Runnable {
         override fun run() {
             val steps = WarmupGuide.steps(type)
+            // 화면이 보이지 않으면(다른 앱, 화면 꺼짐, 뒤로) 멈춘다: 웜업은 보면서 따라 하는 것이라 뒤에서 흐르지 않게.
             if (index !in steps.indices || stepView?.isAttachedToWindow != true) return
+            if (stepView?.isShown != true || !ctx.hasWindowFocus()) { index = -1; rebuild(); return }
             left -= 1
             if (left <= 0) {
                 index += 1
@@ -317,15 +319,22 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
         }
     }
 
+    private var sending = false
     private fun sendToCar(p: Place) {
+        if (sending) return
+        sending = true
         ctx.lifecycleScope.launch {
             try {
                 PlaceSync.sendToCar(ctx, p)
-                prefs.placeBook = prefs.placeBook.recordUse(p, LocalDate.now()); rebuild()
+                // 보내는 사이 지운 곳은 되살리지 않는다(검색 결과에서 보낸 곳은 기억하기를 켠 경우에만 새로 센다).
+                val book = prefs.placeBook
+                if (book.find(p.id) != null || !results.none { it.id == p.id }) prefs.placeBook = book.recordUse(p, LocalDate.now())
+                rebuild()
                 report("‘${p.name}’을 차로 보냈어요. 길안내는 차 화면에서 직접 시작해요.")
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: IllegalArgumentException) { report(e.message ?: "차로 보내지 못했어요.") }
             catch (_: Exception) { report("서버에 닿지 못했어요. 연결 상태를 확인해 주세요.") }
+            finally { sending = false }
         }
     }
 

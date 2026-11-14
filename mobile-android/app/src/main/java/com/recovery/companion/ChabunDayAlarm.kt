@@ -15,7 +15,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 
 /**
- * 퇴근 알림(선택): 다음 켜진 요일의 퇴근 15분 전에 한 번. 정확한 알람 권한 없이 10분 폭의 setWindow만 쓴다
+ * 퇴근 알림(선택): 다음 켜진 요일의 퇴근 15분 전에 한 번. 정확한 알람 권한 없이 setAndAllowWhileIdle만 쓴다
  * (SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM 선언 안 함). 알림은 제안일 뿐이고 누르면 앱 홈이 열린다.
  */
 object ChabunDayAlarm {
@@ -32,7 +32,7 @@ object ChabunDayAlarm {
         val pi = pending(ctx)
         am.cancel(pi)
         val prefs = ChabunDayPrefs(ctx)
-        if (!prefs.eveningReminder) return
+        if (!prefs.eveningReminder || !canNotify(ctx)) return
         val next = DayRhythmPolicy.nextReminder(LocalDateTime.now(), prefs.commute) ?: return
         // 절전(Doze) 중에도 울리게 하되 정확한 알람은 쓰지 않는다(몇 분 늦을 수 있음).
         am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), pi)

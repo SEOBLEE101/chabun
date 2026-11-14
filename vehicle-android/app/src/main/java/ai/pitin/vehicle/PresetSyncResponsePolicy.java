@@ -113,7 +113,12 @@ final class PresetSyncResponsePolicy {
         if (car.get("proposal") != null) preset(car.get("proposal"));
         if (car.get("confirmedPresetId") != null) string(car.get("confirmedPresetId"), 80);
         // A place the phone sent; RestPlace checks the rest of its shape before anything is shown.
-        if (car.get("place") != null) { Map<?, ?> place = object(car.get("place")); string(place.get("id"), 64); string(place.get("name"), 40); }
+        if (car.get("place") != null) {
+            Map<?, ?> place = object(car.get("place")); string(place.get("id"), 64); string(place.get("name"), 40);
+            Object address = place.get("address"), lat = place.get("lat"), lon = place.get("lon");
+            require(address instanceof String && ((String) address).length() <= 120);
+            require((lat == null) == (lon == null) && (lat == null || (lat instanceof Number && lon instanceof Number)));
+        }
         if (s.get("plan") != null) plan(s.get("plan"));
     }
     private static void plan(Object value) {

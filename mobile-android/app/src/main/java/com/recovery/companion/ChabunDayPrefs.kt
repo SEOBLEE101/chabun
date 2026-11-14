@@ -81,7 +81,8 @@ class ChabunDayPrefs(context: Context) {
     fun dismissed(moment: DayMoment, today: LocalDate): Boolean =
         (p.getString("dismissed", "") ?: "").split(',').contains("$today:${moment.name}")
     fun dismiss(moment: DayMoment, today: LocalDate) {
-        val kept = (p.getString("dismissed", "") ?: "").split(',').filter { it.startsWith("$today:") }
+        // 자정을 넘는 창(전날 기준)과 오늘 창의 닫기를 함께 둔다. 더 오래된 것은 버린다.
+        val kept = (p.getString("dismissed", "") ?: "").split(',').filter { it.startsWith("$today:") || it.startsWith("${today.minusDays(1)}:") || it.startsWith("${today.plusDays(1)}:") }
         p.edit().putString("dismissed", (kept + "$today:${moment.name}").distinct().joinToString(",")).apply()
     }
 

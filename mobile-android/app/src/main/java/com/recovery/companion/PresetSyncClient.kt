@@ -24,7 +24,8 @@ class PresetSyncClient(origin: String = "https://127.0.0.1:9447") {
             connection.requestMethod = method
             connection.instanceFollowRedirects = false
             connection.connectTimeout = 5000
-            connection.readTimeout = 5000
+            // 장소 찾기는 서버가 카카오를 5초까지 기다리므로 폰은 그보다 길게 기다린다.
+            connection.readTimeout = if (path == "/places/search") 9000 else 5000
             connection.setRequestProperty("Accept", "application/json")
             token?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
             if (body != null) {

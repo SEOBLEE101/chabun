@@ -189,7 +189,7 @@ export function createPresetSyncService({storeFile=null,tls,now=Date.now,browser
       throw new ContinuityError('NOT_FOUND','경로를 찾지 못했어요.',404);
     } catch(e) {
       const known=e instanceof ContinuityError,status=known?e.status:500;
-      json(res,status,{error:{code:known?e.code:'UNAVAILABLE',message:known?e.message:'프리셋 서버 상태를 확인해 주세요.'},...(actor?.status==='approved' && status===409?{state:engine.getState(),sync:sync(actor)}:{})});
+      json(res,status,{error:{code:known?e.code:'UNAVAILABLE',message:known?e.message:'프리셋 서버 상태를 확인해 주세요.'},...(actor?.status==='approved' && status===409?{state:viewFor(actor,engine.getState()),sync:sync(actor)}:{})});
     }
   }
   browserServer.on('request',(req,res)=>handler(req,res,false));secureServer.on('request',(req,res)=>handler(req,res,true));
