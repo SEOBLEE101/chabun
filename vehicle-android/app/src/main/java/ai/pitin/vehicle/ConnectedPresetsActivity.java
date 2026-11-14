@@ -279,7 +279,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
                 message = link.approved ? "승인됨 · 공유 상태를 읽는 중" : "비교 번호 " + link.comparison + " · 웹에서 일치 확인 후 승인해 주세요.";
                 // Approval is known now: the car can report its theme even if this screen closes before /state.
                 if (link.approved) link.observed(sync.getString("epoch"), sync.getString("deviceId"));
-            } else observe(reply.body);
+            } else { observe(reply.body); flushPendingClear(); }
         });
     }
     private void observe(JSONObject wrapper) throws Exception {
@@ -458,7 +458,9 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
                     navigator().go(target, (ok, text) -> {
                         navigating = false; placeNote = text; message = text;
                         // A route was set: the card has done its job. A name search keeps the card until the driver clears it.
-                        if (ok && target.hasCoordinates()) command("clear_place", object("id", target.id)); else render();
+                        // The navigation screen comes to the front, so this screen may not be writable now: clear when it can.
+                        if (ok && target.hasCoordinates()) { pendingClearPlaceId = target.id; flushPendingClear(); }
+                        render();
                     });
                 }, 700);
             });
@@ -621,6 +623,19 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
     private VehicleEnvironment placeEnvironment;
     private boolean navigating;
     private String placeNote;
+    /** Process memory: the navigation screen may replace this screen, so the clear waits for the next read of any instance. */
+    private static String pendingClearPlaceId;
+    /** Sends the clear for a place whose route started, once this screen can write again; drops it if the place changed. */
+    private void flushPendingClear() {
+        if (pendingClearPlaceId == null || state == null) return;
+        JSONObject devices = state.optJSONObject("devices");
+        JSONObject car = devices == null ? null : devices.optJSONObject("vehicle");
+        JSONObject place = car == null ? null : car.optJSONObject("place");
+        if (place == null || !pendingClearPlaceId.equals(place.optString("id"))) { pendingClearPlaceId = null; return; }
+        if (!policy.canWrite() || busy) return;
+        String id = pendingClearPlaceId; pendingClearPlaceId = null;
+        command("clear_place", object("id", id));
+    }
     /** The demo build hands nothing to a navigation, so it needs no gate; live builds read the car's own gear and speed. */
     private boolean parkedForRoute() {
         if (!navigator().live()) return true;
