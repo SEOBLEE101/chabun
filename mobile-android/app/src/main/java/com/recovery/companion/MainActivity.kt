@@ -74,8 +74,9 @@ class MainActivity : ComponentActivity(), PitApp {
     }
     private var heartCheckJob: kotlinx.coroutines.Job? = null
     private val notificationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
-        ChabunDayPrefs(this).eveningReminder = granted; ChabunDayAlarm.reschedule(this)
-        if (!granted) shell.report("알림을 허용하지 않아 퇴근 알림을 켜지 않았어요. 홈 카드는 그대로 보여요.")
+        val ok = granted && ChabunDayAlarm.canNotify(this)
+        ChabunDayPrefs(this).eveningReminder = ok; ChabunDayAlarm.reschedule(this)
+        if (!ok) shell.report("알림을 허용하지 않아 퇴근 알림을 켜지 않았어요. 홈 카드는 그대로 보여요.")
         refreshHome()
     }
     private val heartWritePermission = HealthPermission.getWritePermission(HeartRateRecord::class)
@@ -111,7 +112,19 @@ class MainActivity : ComponentActivity(), PitApp {
         }
     }
     override fun setEveningReminder(on: Boolean) {
-        if (on && !ChabunDayAlarm.canNotify(this)) { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS); return }
+        if (on && !ChabunDayAlarm.canNotify(this)) {
+            val askRuntime = android.os.Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (askRuntime) { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS); return }
+            // 권한은 있지만 휴대폰 설정에서 앱 알림이 꺼져 있다(또는 Android 12 이하): 켜지 않고 설정으로 안내한다.
+            ChabunDayPrefs(this).eveningReminder = false; ChabunDayAlarm.reschedule(this); refreshHome()
+            shell.report("휴대폰 알림 설정에서 차분 알림을 먼저 켜 주세요.")
+            runCatching {
+                startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName))
+            }
+            return
+        }
         ChabunDayPrefs(this).eveningReminder = on; ChabunDayAlarm.reschedule(this); refreshHome()
     }
 

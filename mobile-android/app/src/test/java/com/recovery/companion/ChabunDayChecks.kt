@@ -103,6 +103,7 @@ object ChabunDayChecks {
         WORKOUT_TYPES.forEach { t ->
             val total = WarmupGuide.totalSeconds(t)
             verify(total in 240..360, "warmup $t about 5 min ($total)")
+            verify(WarmupGuide.minutes(t) == 5, "warmup $t shows 5분 (${WarmupGuide.minutes(t)})")
             verify(WarmupGuide.steps(t).all { it.seconds in 30..150 && it.title.isNotBlank() })
             verify(WarmupGuide.steps(t).none { s -> banned.any { (s.title + s.detail).contains(it) } })
         }

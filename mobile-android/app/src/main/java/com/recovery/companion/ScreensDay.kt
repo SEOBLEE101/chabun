@@ -150,7 +150,7 @@ class ChabunDayScreen(shell: PhoneShell) : Screen(shell) {
                     ui.row("pulse", "${hm(plan.start)} ${DayRhythmPolicy.typeLabel(plan.type)}", "20분 전부터 웜업, 마치면 쉼을 제안해요", end = "지우기", chevron = false) {
                         prefs.setPlan(null); rebuild()
                     },
-                    ui.row("vibe", "웜업 미리 보기", "${WarmupGuide.totalSeconds(plan.type) / 60}분 · 일반적인 준비 동작") { shell.push(WarmupScreen(shell, plan.type)) },
+                    ui.row("vibe", "웜업 미리 보기", "${WarmupGuide.minutes(plan.type)}분 · 일반적인 준비 동작") { shell.push(WarmupScreen(shell, plan.type)) },
                 ))
             } else {
                 addView(ui.body("퇴근 후 할 운동을 골라 두면 웜업과 운동 뒤 쉼을 이어 줘요.", 14f))
@@ -183,9 +183,11 @@ class WarmupScreen(shell: PhoneShell, private val type: String) : Screen(shell) 
     private val tick = object : Runnable {
         override fun run() {
             val steps = WarmupGuide.steps(type)
-            // 화면이 보이지 않으면(다른 앱, 화면 꺼짐, 뒤로) 멈춘다: 웜업은 보면서 따라 하는 것이라 뒤에서 흐르지 않게.
             if (index !in steps.indices || stepView?.isAttachedToWindow != true) return
-            if (stepView?.isShown != true || !ctx.hasWindowFocus()) { index = -1; rebuild(); return }
+            // 앱이 뒤로 가면(다른 앱, 화면 꺼짐) 그 자리에서 멈췄다가 돌아오면 이어 간다. 알림창을 잠깐 내리는 것으로는 멈추지 않는다.
+            if (!ctx.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) || stepView?.isShown != true) {
+                stepView?.postDelayed(this, 1000); return
+            }
             left -= 1
             if (left <= 0) {
                 index += 1
@@ -202,7 +204,7 @@ class WarmupScreen(shell: PhoneShell, private val type: String) : Screen(shell) 
         c.addView(ui.backHeader(null, "웜업", { shell.pop() }), LinearLayout.LayoutParams(-1, -2).apply { topMargin = -ui.dp(8); marginStart = -ui.dp(10) })
         val steps = WarmupGuide.steps(type)
         c.addView(ui.vstack(10f).apply {
-            addView(ui.display("${DayRhythmPolicy.typeLabel(type)} 전\n${WarmupGuide.totalSeconds(type) / 60}분 웜업", 30f))
+            addView(ui.display("${DayRhythmPolicy.typeLabel(type)} 전\n${WarmupGuide.minutes(type)}분 웜업", 30f))
             addView(ui.body(WarmupGuide.NOTE))
         })
         c.addView(ui.card(22f, 22f, 10f).apply {

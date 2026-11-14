@@ -39,4 +39,6 @@ object WarmupGuide {
     }
 
     fun totalSeconds(type: String): Int = steps(type).sumOf { it.seconds }
+    /** 화면에 보이는 분: 반올림(285초 → 5분). */
+    fun minutes(type: String): Int = (totalSeconds(type) + 30) / 60
 }

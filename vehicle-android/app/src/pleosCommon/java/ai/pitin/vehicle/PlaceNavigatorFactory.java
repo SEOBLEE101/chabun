@@ -28,7 +28,8 @@ final class PlaceNavigatorFactory {
         private static final long TIMEOUT_MS = 20_000;
         private static final String NO_LINK = "이 차의 내비와 연결하지 못했어요. 내비 화면에서 직접 찾아 주세요.";
         private final Handler main = new Handler(Looper.getMainLooper());
-        private final NaviHelper navi;
+        private final Context appContext;
+        private NaviHelper navi;
         private boolean ready, initializing, closed, listening;
         private Callback pending;
         private RestPlace waiting;
@@ -37,7 +38,7 @@ final class PlaceNavigatorFactory {
         private long initSeq;
         private final Runnable timeout = this::timedOut;
 
-        PleosPlaceNavigator(Context context) { navi = new NaviHelper(context); }
+        PleosPlaceNavigator(Context context) { appContext = context; navi = new NaviHelper(context); }
 
         public boolean live() { return true; }
 
@@ -48,6 +49,12 @@ final class PlaceNavigatorFactory {
             main.postDelayed(timeout, TIMEOUT_MS);
             if (ready) { send(); return; }
             if (initializing) return; // the running initialize sends the waiting place when it connects
+            if (initSeq > 0) {
+                // An earlier connect timed out: start over with a fresh helper instead of initializing the same one twice.
+                detach();
+                try { navi.release(); } catch (RuntimeException ignored) { }
+                navi = new NaviHelper(appContext);
+            }
             initializing = true;
             final long seq = ++initSeq;
             try {
@@ -69,8 +76,8 @@ final class PlaceNavigatorFactory {
         }
 
         private void timedOut() {
-            // An initialize that never answered is abandoned, so the next press tries a fresh one.
-            if (!ready) { initializing = false; initSeq++; }
+            // The next press starts a fresh connect; a late answer to this one before then still makes the helper ready.
+            if (!ready) initializing = false;
             finish(false, "내비가 응답하지 않았어요. 내비 화면에서 직접 찾아 주세요.");
         }
 
