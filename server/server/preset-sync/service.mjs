@@ -2,7 +2,7 @@ import { createServer as httpServer } from 'node:http';
 import { createServer as httpsServer } from 'node:https';
 import { randomBytes, randomInt, randomUUID, createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { ContinuityEngine, ContinuityError } from '../continuity/engine.mjs';
+import { ContinuityEngine, ContinuityError, inKorea, round4 } from '../continuity/engine.mjs';
 import { openPreferenceStore } from './store.mjs';
 import { reportAppearance, appearanceView } from './appearance.mjs';
 
@@ -12,8 +12,18 @@ const hash=value=>createHash('sha256').update(value).digest('hex');
 const secret=()=>randomBytes(32).toString('base64url');
 const fail=(condition,code,message,status=400)=>{if(!condition)throw new ContinuityError(code,message,status);};
 function fields(value,allowed) {fail(value!==null && typeof value==='object' && !Array.isArray(value) && Object.keys(value).length===allowed.length && allowed.every(k=>Object.hasOwn(value,k)),'INVALID_FIELDS','요청 항목을 확인해 주세요.');}
-const vehicleActions=new Set(['select_preset','set_default','propose_vehicle','begin_rest','accept_vehicle']);
-const phoneActions=new Set(['select_preset','set_feeling','set_default','save_preset','delete_preset','begin_rest','propose_vehicle','propose_rest','arm_arrival','update_arrival','cancel_arrival','advance_time','confirm_home','set_home_manual','set_target_online']);
+const vehicleActions=new Set(['select_preset','set_default','propose_vehicle','begin_rest','accept_vehicle','clear_place']);
+const phoneActions=new Set(['select_preset','set_feeling','set_default','save_preset','delete_preset','begin_rest','propose_vehicle','propose_rest','propose_place','arm_arrival','update_arrival','cancel_arrival','advance_time','confirm_home','set_home_manual','set_target_online']);
+const placeKinds=['park','cafe','bookstore','sauna','other'];
+const kakaoSearch='https://dapi.kakao.com/v2/local/search/keyword.json';
+// Upstream text is shortened in UTF-16 units (matching propose_place) without leaving half an emoji.
+const cut=(value,max)=>{if(typeof value!=='string')return '';let t=value.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,max);if(/[\uD800-\uDBFF]$/.test(t))t=t.slice(0,-1);return t.trim();};
+function placeOf(doc) {
+  if(!doc || typeof doc!=='object' || typeof doc.id!=='string' || !/^[0-9A-Za-z_-]{1,40}$/.test(doc.id))return null;
+  const name=cut(doc.place_name,40),lat=Number(doc.y),lon=Number(doc.x);
+  if(!name || typeof doc.y!=='string' && typeof doc.y!=='number' || typeof doc.x!=='string' && typeof doc.x!=='number' || !inKorea(lat,lon))return null;
+  return {id:'kakao:'+doc.id,name,address:cut(doc.road_address_name,120) || cut(doc.address_name,120),lat:round4(lat),lon:round4(lon),category:cut(doc.category_group_name,40)};
+}
 const commonHeaders={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"};
 function json(res,status,data) {res.writeHead(status,{...commonHeaders,'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));}
 async function body(req) {
@@ -40,12 +50,13 @@ for (const phase of ['guided', 'resume']) {
 }
 
 /** Separate synthetic preference channel. No health relay routes or credentials are shared. */
-export function createPresetSyncService({storeFile=null,tls,now=Date.now,browserHandler}={}) {
+export function createPresetSyncService({storeFile=null,tls,now=Date.now,browserHandler,kakaoRestKey=process.env.KAKAO_REST_KEY ?? null,fetchImpl=globalThis.fetch}={}) {
   const engine=new ContinuityEngine({now:now()}), epoch=randomUUID();
   // Construct TLS first so configuration errors cannot strand the writer lock.
   const secureServer=httpsServer(tls), browserServer=httpServer();
   const store=openPreferenceStore(storeFile,engine),sessions=new Map(),pairings=new Map();
   let attempts=[];
+  const searches=new WeakMap();
   const sync=actor=>({epoch,deviceId:actor.deviceId,role:actor.role,expiresAt:new Date(actor.expiresAt).toISOString()});
   function cleanup(){const time=now();for(const [k,v] of sessions)if(v.expiresAt<=time)sessions.delete(k);for(const [k,v] of pairings)if(v.expiresAt<=time)pairings.delete(k);attempts=attempts.filter(t=>time-t<60000);}
   function authorize(req,secure,pending=false) {
@@ -129,11 +140,32 @@ export function createPresetSyncService({storeFile=null,tls,now=Date.now,browser
         fail(actor.role==='web' || (actor.role==='phone'?phoneActions:vehicleActions).has(p.action),'ROLE_FORBIDDEN','이 화면에서는 해당 작업을 할 수 없어요.',403);
         // A rest with its 차 안 설정 comes from the phone only (not the local web page, which may run other commands).
         if(p.action==='propose_rest')fail(actor.role==='phone','ROLE_FORBIDDEN','폰에서만 쉼을 차에 보낼 수 있어요.',403);
+        if(p.action==='propose_place')fail(actor.role==='phone','ROLE_FORBIDDEN','폰에서만 쉬어 갈 곳을 차에 보낼 수 있어요.',403);
         if(actor.role!=='web' && ['begin_rest','accept_vehicle'].includes(p.action))fail(p.payload?.origin===actor.role,'ROLE_FORBIDDEN','자신의 화면 역할로만 요청할 수 있어요.',403);
         fail(p.expectedEpoch===epoch,'EPOCH_CONFLICT','서버 세션이 바뀌었어요. 최신 내용을 확인해 주세요.',409);
         fail(typeof p.requestId==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.requestId),'INVALID_REQUEST_ID','요청 UUID를 확인해 주세요.');
         const {expectedEpoch,...command}=p;const state=engine.execute(command,{actor,commit:store.commit});
         return json(res,200,{state,sync:sync(actor),acknowledgedRequestId:p.requestId});
+      }
+      if(route==='/places/search' && method==='POST') {
+        // Query text only: no coordinates are accepted or sent, and neither the query nor the key is ever logged.
+        fail(secure,'TLS_REQUIRED','네이티브 연결에는 HTTPS가 필요해요.',403);
+        fail(actor.role==='phone','ROLE_FORBIDDEN','폰에서만 장소를 찾을 수 있어요.',403);
+        fail(kakaoRestKey,'PLACES_UNAVAILABLE','장소 검색이 아직 준비되지 않았어요.',503);
+        const p=await body(req);actor=authorize(req,secure).actor;fields(p,['query','kind']);
+        fail(typeof p.query==='string' && p.query.trim().length>=1 && p.query.trim().length<=40 && !/[\u0000-\u001f\u007f]/.test(p.query),'INVALID_SEARCH','검색어는 1~40자로 입력해 주세요.');
+        fail(placeKinds.includes(p.kind),'INVALID_SEARCH','장소 종류를 확인해 주세요.');
+        const time=now(),recent=(searches.get(actor)??[]).filter(t=>time-t<60000);
+        fail(recent.length<30,'SEARCH_LIMIT','검색이 많아요. 잠시 뒤 다시 해 주세요.',429);recent.push(time);searches.set(actor,recent);
+        let docs;
+        try {
+          const url=kakaoSearch+'?query='+encodeURIComponent(p.query.trim())+'&size=15'+(p.kind==='cafe'?'&category_group_code=CE7':'');
+          const response=await fetchImpl(url,{headers:{Authorization:'KakaoAK '+kakaoRestKey},signal:AbortSignal.timeout(5000)});
+          if(!response.ok)throw new Error('upstream');
+          docs=(await response.json())?.documents;if(!Array.isArray(docs))throw new Error('upstream');
+        } catch {throw new ContinuityError('PLACES_FAILED','장소를 찾지 못했어요. 잠시 뒤 다시 해 주세요.',502);}
+        actor=authorize(req,secure).actor;
+        return json(res,200,{places:docs.map(placeOf).filter(Boolean).slice(0,15),sync:sync(actor)});
       }
       if(route==='/pairings' && method==='POST') {
         web(actor);const p=await body(req);actor=authorize(req,secure).actor;web(actor);fields(p,['role']);fail(['phone','vehicle'].includes(p.role),'INVALID_ROLE','연결 역할을 확인해 주세요.');fail(pairings.size<32,'PAIRING_LIMIT','연결 번호가 많아요. 만료 후 다시 시도해 주세요.',429);

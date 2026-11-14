@@ -18,7 +18,7 @@ class PresetSyncClient(origin: String = "https://127.0.0.1:9447") {
         }
     }
     fun call(method: String, path: String, token: String? = null, body: JSONObject? = null): Reply {
-        require(path in setOf("/pairings/claim", "/pairings/status", "/state", "/commands", "/session", "/appearance"))
+        require(path in setOf("/pairings/claim", "/pairings/status", "/state", "/commands", "/session", "/appearance", "/places/search"))
         val connection = URL(base + path).openConnection() as HttpsURLConnection
         try {
             connection.requestMethod = method

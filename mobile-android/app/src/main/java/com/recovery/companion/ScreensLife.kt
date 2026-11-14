@@ -7,6 +7,8 @@ import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -93,7 +95,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
     }
 
     private fun save(block: () -> Unit) {
-        try { block(); rebuild() } catch (e: IllegalArgumentException) { report(e.message ?: "저장하지 못했어요.") }
+        try { block(); LifeRestAlarm.reschedule(ctx); rebuild() } catch (e: IllegalArgumentException) { report(e.message ?: "저장하지 못했어요.") }
     }
 
     private fun commuteSection(c: GapLayout) {
@@ -110,6 +112,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
                 rows += ui.row("today", "퇴근", "15분 전부터 한 시간쯤 ‘${presetName(s.eveningPresetId)}’", end = hm(s.evening)) {
                     pickTime(s.evening) { t -> save { prefs.commute = prefs.commute.copy(evening = t) } }
                 }
+                rows += ui.toggleRow("퇴근 무렵 알림", "퇴근 15분 전쯤 한 번 알려요. 10분쯤 늦을 수 있어요.", prefs.eveningReminder) { on -> app.setEveningReminder(on) }
             }
             addView(ui.list(*rows.toTypedArray()))
             if (s.enabled) {
@@ -221,6 +224,9 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
     private val prefs = LifeRestPrefs(ctx)
     private var kind = PlaceKind.PARK
     private var draft = ""
+    private var query = ""
+    private var results: List<Place> = emptyList()
+    private var searching = false
 
     override fun onStateChanged() {}
 
@@ -247,17 +253,19 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
             else addView(ui.list(*fav.map { placeRow(it) }.toTypedArray()))
         })
         c.addView(ui.vstack(10f).apply {
+            addView(ui.h2("장소 찾기", 17f))
+            if (!PlaceSync.connected(ctx)) {
+                addView(ui.body("연결 › 취향 함께 쓰기를 이으면 동네 이름으로 장소를 찾고 차로 보낼 수 있어요.", 14f))
+            } else {
+                addView(field(query, "예: 성수 카페, 한강 산책로", "찾을 말") { query = it }, LinearLayout.LayoutParams(-1, ui.dp(56)))
+                addView(ui.secondary(if (searching) "찾고 있어요" else "${kind.label}로 찾기", 48f, 15f) { search() })
+                addView(ui.caption("적은 말과 종류만 서버로 보내요. 지금 위치는 읽지도 보내지도 않아요."))
+                if (results.isNotEmpty()) addView(ui.list(*results.map { placeRow(it) }.toTypedArray()))
+            }
+        })
+        c.addView(ui.vstack(10f).apply {
             addView(ui.h2("곳 추가", 17f))
-            addView(EditText(ctx).apply {
-                setText(draft); textSize = 17f; setTextColor(t.ink); setHintTextColor(t.ink3); hint = "예: 집 앞 산책로"
-                background = ui.shape(t.surface, 20f, t.line2); setPadding(ui.dp(18), 0, ui.dp(18), 0); setSingleLine()
-                filters = arrayOf(InputFilter.LengthFilter(PlaceBook.NAME_MAX)); contentDescription = "곳 이름"
-                addTextChangedListener(object : android.text.TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                    override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                    override fun afterTextChanged(e: android.text.Editable?) { draft = e.toString() }
-                })
-            }, LinearLayout.LayoutParams(-1, ui.dp(56)))
+            addView(field(draft, "예: 집 앞 산책로", "곳 이름") { draft = it }, LinearLayout.LayoutParams(-1, ui.dp(56)))
             addView(ui.flow().apply {
                 PlaceKind.entries.forEach { k -> addView(ui.chip(k.label, k == kind, small = true) { kind = k; rebuild() }) }
             })
@@ -272,6 +280,41 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
         c.addView(ui.info("이 폰에만 저장해요. ‘자주 가는 곳 기억하기’를 끄면 횟수 기록을 바로 지워요."))
     }
 
+    private fun field(value: String, hintText: String, label: String, onChange: (String) -> Unit) = EditText(ctx).apply {
+        setText(value); textSize = 17f; setTextColor(t.ink); setHintTextColor(t.ink3); hint = hintText
+        background = ui.shape(t.surface, 20f, t.line2); setPadding(ui.dp(18), 0, ui.dp(18), 0); setSingleLine()
+        filters = arrayOf(InputFilter.LengthFilter(PlaceBook.NAME_MAX)); contentDescription = label
+        addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(e: android.text.Editable?) { onChange(e.toString()) }
+        })
+    }
+
+    private fun search() {
+        if (searching) return
+        searching = true; rebuild()
+        ctx.lifecycleScope.launch {
+            try { results = PlaceSync.search(ctx, query, kind); if (results.isEmpty()) report("찾은 곳이 없어요. 다른 말로 찾아 주세요.") }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: IllegalArgumentException) { report(e.message ?: "찾지 못했어요.") }
+            catch (_: Exception) { report("서버에 닿지 못했어요. 연결 상태를 확인해 주세요.") }
+            searching = false; rebuild()
+        }
+    }
+
+    private fun sendToCar(p: Place) {
+        ctx.lifecycleScope.launch {
+            try {
+                PlaceSync.sendToCar(ctx, p)
+                prefs.placeBook = prefs.placeBook.recordUse(p, LocalDate.now()); rebuild()
+                report("‘${p.name}’을 차로 보냈어요. 길안내는 차 화면에서 직접 시작해요.")
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: IllegalArgumentException) { report(e.message ?: "차로 보내지 못했어요.") }
+            catch (_: Exception) { report("서버에 닿지 못했어요. 연결 상태를 확인해 주세요.") }
+        }
+    }
+
     private fun placeRow(p: Place): View {
         val sub = listOfNotNull(p.kind.label, p.address.takeIf { it.isNotBlank() }, if (p.visits > 0) "${p.visits}번" else null).joinToString(" · ")
         return ui.row(null, p.name, sub) { actions(p) }
@@ -280,6 +323,7 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
     private fun actions(p: Place) = shell.showSheet { ui, dismiss ->
         ui.vstack(12f).apply {
             addView(ui.h2(p.name))
+            if (PlaceSync.connected(ctx)) addView(ui.secondary("차로 보내기", 52f, 15f) { dismiss(); sendToCar(p) })
             if (prefs.placeBook.countVisits) addView(ui.secondary("여기 왔어요", 52f, 15f) {
                 dismiss(); prefs.placeBook = prefs.placeBook.recordUse(p, LocalDate.now()); rebuild(); report("‘${p.name}’에 온 것을 기억했어요.")
             })
@@ -288,7 +332,7 @@ class PlacesScreen(shell: PhoneShell) : Screen(shell) {
             }) else addView(ui.secondary("즐겨찾기에서 빼기", 52f, 15f) {
                 dismiss(); prefs.placeBook = prefs.placeBook.unfavorite(p.id); rebuild()
             })
-            addView(ui.ghost("지우기", t.warn, 14f) { dismiss(); prefs.placeBook = prefs.placeBook.remove(p.id); rebuild() },
+            if (prefs.placeBook.find(p.id) != null) addView(ui.ghost("지우기", t.warn, 14f) { dismiss(); prefs.placeBook = prefs.placeBook.remove(p.id); rebuild() },
                 LinearLayout.LayoutParams(-2, ui.dp(48)).apply { gravity = Gravity.CENTER_HORIZONTAL })
         }
     }

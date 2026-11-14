@@ -1,0 +1,74 @@
+package com.recovery.companion
+
+import android.Manifest
+import android.app.AlarmManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+
+/**
+ * 퇴근 알림(선택): 다음 켜진 요일의 퇴근 15분 전에 한 번. 정확한 알람 권한 없이 10분 폭의 setWindow만 쓴다
+ * (SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM 선언 안 함). 알림은 제안일 뿐이고 누르면 앱 홈이 열린다.
+ */
+object LifeRestAlarm {
+    const val ACTION = "com.recovery.companion.LIFE_REST_REMINDER"
+    private const val CHANNEL = "life_rest"
+    private const val NOTIFICATION_ID = 4107
+    private const val WINDOW_MS = 10 * 60_000L
+
+    private fun pending(ctx: Context): PendingIntent = PendingIntent.getBroadcast(ctx, 7,
+        Intent(ctx, LifeRestReceiver::class.java).setAction(ACTION), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
+    /** 설정이 바뀔 때마다 부른다: 알림이 꺼져 있으면 예약을 지우기만 한다. */
+    fun reschedule(ctx: Context) {
+        val am = ctx.getSystemService(AlarmManager::class.java) ?: return
+        val pi = pending(ctx)
+        am.cancel(pi)
+        val prefs = LifeRestPrefs(ctx)
+        if (!prefs.eveningReminder) return
+        val next = DayRhythmPolicy.nextReminder(LocalDateTime.now(), prefs.commute) ?: return
+        am.setWindow(AlarmManager.RTC_WAKEUP, next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), WINDOW_MS, pi)
+    }
+
+    fun canNotify(ctx: Context): Boolean = Build.VERSION.SDK_INT < 33 ||
+        ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    fun show(ctx: Context) {
+        if (!canNotify(ctx)) return
+        val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, "하루 쉼 알림", NotificationManager.IMPORTANCE_LOW).apply {
+            description = "퇴근 무렵 한 번, 쉬어 갈지 물어봐요."
+        })
+        val open = PendingIntent.getActivity(ctx, 8, Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        nm.notify(NOTIFICATION_ID, Notification.Builder(ctx, CHANNEL)
+            .setSmallIcon(R.drawable.pitin_icon_mono)
+            .setContentTitle("퇴근길이에요")
+            .setContentText("운전하기 전에 3분 쉬고 출발할까요?")
+            .setContentIntent(open).setAutoCancel(true).build())
+    }
+}
+
+class LifeRestReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        when (intent.action) {
+            LifeRestAlarm.ACTION -> {
+                val prefs = LifeRestPrefs(context)
+                val today = LocalDate.now()
+                if (prefs.eveningReminder && prefs.commute.enabled && today.dayOfWeek in prefs.commute.days &&
+                    !prefs.dismissed(DayMoment.EVENING_COMMUTE, today)) LifeRestAlarm.show(context)
+                LifeRestAlarm.reschedule(context)
+            }
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> LifeRestAlarm.reschedule(context)
+        }
+    }
+}

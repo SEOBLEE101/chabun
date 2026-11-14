@@ -89,6 +89,15 @@ object DayRhythmPolicy {
     private fun inWindow(now: LocalDateTime, at: LocalDateTime, before: Duration, after: Duration): Boolean =
         !now.isBefore(at.minus(before)) && now.isBefore(at.plus(after))
 
+    /** 퇴근 알림: 다음 켜진 요일의 퇴근 창 시작(퇴근 15분 전). 지금보다 뒤인 첫 시각, 없으면 null. */
+    fun nextReminder(now: LocalDateTime, c: CommuteSettings): LocalDateTime? {
+        if (!c.enabled || c.days.isEmpty()) return null
+        return (0L..7L).asSequence().map { now.toLocalDate().plusDays(it) }
+            .filter { it.dayOfWeek in c.days }
+            .map { it.atTime(c.evening).minus(EVENING_BEFORE) }
+            .firstOrNull { it.isAfter(now) }
+    }
+
     fun presetAfterWorkout(type: String): String = when (type) {
         "running", "cycling" -> "cool_down"
         "walking" -> "gentle_refresh"

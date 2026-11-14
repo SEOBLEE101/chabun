@@ -112,6 +112,8 @@ final class PresetSyncResponsePolicy {
         bool(car.get("parked")); require(Boolean.TRUE.equals(car.get("simulated")));
         if (car.get("proposal") != null) preset(car.get("proposal"));
         if (car.get("confirmedPresetId") != null) string(car.get("confirmedPresetId"), 80);
+        // A place the phone sent; RestPlace checks the rest of its shape before anything is shown.
+        if (car.get("place") != null) { Map<?, ?> place = object(car.get("place")); string(place.get("id"), 64); string(place.get("name"), 40); }
         if (s.get("plan") != null) plan(s.get("plan"));
     }
     private static void plan(Object value) {

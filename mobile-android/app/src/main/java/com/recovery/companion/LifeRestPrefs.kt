@@ -50,6 +50,10 @@ class LifeRestPrefs(context: Context) {
         get() = PlaceBook.decode(p.getString("places", null))
         set(v) { p.edit().putString("places", v.encode()).apply() }
 
+    var eveningReminder: Boolean
+        get() = p.getBoolean("eveningReminder", false)
+        set(v) { p.edit().putBoolean("eveningReminder", v).apply() }
+
     var heartNudge: Boolean
         get() = p.getBoolean("heartNudge", false)
         set(v) {

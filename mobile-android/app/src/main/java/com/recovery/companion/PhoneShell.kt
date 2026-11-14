@@ -57,6 +57,8 @@ interface PitApp {
     val heartNudgeShown: Boolean
     fun setHeartNudge(on: Boolean)
     fun dismissHeartNudge()
+    /** 퇴근 알림(선택): 켤 때 Android 13+에서는 알림 권한을 묻는다. */
+    fun setEveningReminder(on: Boolean)
 }
 
 /** 이 프로세스 안에서만 사는 귀가 준비 체험(합성 기기). */

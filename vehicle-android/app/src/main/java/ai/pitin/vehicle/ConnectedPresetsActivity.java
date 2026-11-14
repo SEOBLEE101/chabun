@@ -226,6 +226,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
     }
     @Override public void onDestroy() {
         // The approved link stays in process memory (PresetLink); only this screen's view state goes.
+        if (placeNavigator != null) { placeNavigator.close(); placeNavigator = null; }
         link.removeListener(this);
         state = null; uncertain = null; revocation.clear();
         network.shutdownNow(); super.onDestroy();
@@ -434,6 +435,30 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
         JSONObject proposal = vehicle == null ? null : vehicle.optJSONObject("proposal");
         seenProposalId = proposal == null ? null : proposal.optString("id", null);
 
+        RestPlace place = placeFrom(vehicle == null ? null : vehicle.optJSONObject("place"));
+        if (place != null) {
+            // A place the phone sent: name, address and maybe coordinates, no visit history. Navigation starts only here.
+            LinearLayout sent = section();
+            sent.setBackground(CarKit.round(t.surface, k.px(36), t.line, Math.max(1, k.px(1))));
+            k.live(sent, "폰에서 보낸 쉬어 갈 곳", 22, false);
+            k.title(sent, place.name, 36).setLayoutParams(withTop(CarKit.lp(-2, -2), 16));
+            k.body(sent, place.summary()).setLayoutParams(withTop(CarKit.lp(-1, -2), 12));
+            final RestPlace target = place;
+            TextView go = k.primary(sent, place.buttonLabel(), () -> {
+                if (busy || navigating) return;
+                navigating = true;
+                navigator().go(target, (ok, text) -> {
+                    navigating = false; message = text;
+                    if (ok) command("clear_place", object("id", target.id)); else render();
+                });
+            });
+            go.setLayoutParams(withTop(CarKit.lp(-2, -2), 24));
+            writes.add(go);
+            TextView drop = k.chip(sent, "지우기", () -> { if (!busy) command("clear_place", object("id", target.id)); });
+            drop.setLayoutParams(withTop(CarKit.lp(-2, -2), 12));
+            writes.add(drop);
+        }
+
         if (proposal != null && proposal.has("cabin")) {
             // A rest sent from the phone with its 차 안 설정: prepared on 시작, started and applied only by a press there.
             LinearLayout arrived = section();
@@ -579,6 +604,19 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
             case "confirmed_demo": return "합성 관측 확인"; case "failed": return "요청 실패";
             case "cancelled": return "취소됨"; case "expired": return "시간 만료";
             case "needs_review": return "다시 확인 필요"; default: return "상태 미확인"; }
+    }
+    private PlaceNavigator placeNavigator;
+    private boolean navigating;
+    private PlaceNavigator navigator() {
+        if (placeNavigator == null) placeNavigator = PlaceNavigatorFactory.create(this);
+        return placeNavigator;
+    }
+    /** The shared state's devices.vehicle.place, or null when absent or out of shape. */
+    private static RestPlace placeFrom(JSONObject p) {
+        if (p == null) return null;
+        Double lat = p.isNull("lat") ? null : p.optDouble("lat", Double.NaN);
+        Double lon = p.isNull("lon") ? null : p.optDouble("lon", Double.NaN);
+        return RestPlace.of(p.optString("id", null), p.optString("name", null), p.optString("address", ""), lat, lon);
     }
     /** Builds that set the cabin when a rest starts: the car-connected build, and the demo build on its pretend car. */
     private static boolean cabinControl() { return BuildConfig.LIVE_CONTROL || BuildConfig.SIMULATED_VEHICLE; }

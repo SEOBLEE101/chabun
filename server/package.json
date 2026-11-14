@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server/index.mjs",
     "start:https": "node server/https.mjs",
-    "test": "node --test tests/relay.test.mjs tests/continuity.test.mjs tests/preset-sync.test.mjs tests/preset-sync-web.test.mjs",
+    "test": "node --test tests/relay.test.mjs tests/continuity.test.mjs tests/preset-sync.test.mjs tests/preset-sync-web.test.mjs tests/places.test.mjs",
     "demo:continuity": "node server/preset-sync/index.mjs",
     "start:preset-sync": "node server/preset-sync/index.mjs",
     "test:preset-sync": "node --test tests/preset-sync.test.mjs tests/preset-sync-web.test.mjs",

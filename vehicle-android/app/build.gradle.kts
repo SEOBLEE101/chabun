@@ -97,7 +97,8 @@ android {
         // 차 안 맞추기 on a real car (pleos flavor only): the build also changes cabin values while parked.
         buildConfigField("boolean", "LIVE_CONTROL", "false")
         testInstrumentationRunner = if (providers.gradleProperty("gleoAcceptance").orNull == "true")
-            "ai.pitin.vehicle.GleoInstrumentation" else if (providers.gradleProperty("restFlowAcceptance").orNull == "true")
+            "ai.pitin.vehicle.GleoInstrumentation" else if (providers.gradleProperty("placeNavAcceptance").orNull == "true")
+            "ai.pitin.vehicle.PlaceNavigationInstrumentation" else if (providers.gradleProperty("restFlowAcceptance").orNull == "true")
             "ai.pitin.vehicle.RestFlowInstrumentation" else if (providers.gradleProperty("graphiteAcceptance").orNull == "true")
             "ai.pitin.vehicle.GraphiteInstrumentation" else if (localTlsResources != null)
             "ai.pitin.vehicle.TlsTransportInstrumentation" else "ai.pitin.vehicle.GraphiteInstrumentation"
@@ -227,12 +228,15 @@ dependencies {
         // Exact coordinates verified against the official POM and AAR on 2026-10-24.
         add("pleosReadOnlyImplementation", "ai.pleos.playground:Vehicle:2.3.2")
         add("pleosImplementation", "ai.pleos.playground:Vehicle:2.3.2")
+        // NaviHelper is "Ready to Use" (no approval). Coordinates checked against the POM and AAR on 2026-11-14.
+        add("pleosReadOnlyImplementation", "ai.pleos.playground:NaviHelper:3.0.5")
+        add("pleosImplementation", "ai.pleos.playground:NaviHelper:3.0.5")
     }
 }
 
 val compileVehiclePolicyChecks = tasks.register<JavaCompile>("compileVehiclePolicyChecks") {
     source(fileTree("src/main/java/ai/pitin/vehicle") {
-        include("SafetyGate.java", "RestSession.java", "PresetSyncPolicy.java", "PresetSyncResponsePolicy.java", "RestGateMessages.java", "GleoActionPolicy.java", "PendingRevocation.java", "AppearancePublisher.java", "AppearanceResponsePolicy.java", "CabinSettings.java", "CabinControl.java", "CabinActuator.java", "RestInterruption.java")
+        include("SafetyGate.java", "RestSession.java", "PresetSyncPolicy.java", "PresetSyncResponsePolicy.java", "RestGateMessages.java", "GleoActionPolicy.java", "PendingRevocation.java", "AppearancePublisher.java", "AppearanceResponsePolicy.java", "CabinSettings.java", "CabinControl.java", "CabinActuator.java", "RestInterruption.java", "RestPlace.java")
     })
     source(fileTree("../tests") { include("*.java") })
     classpath = files()
@@ -247,7 +251,7 @@ val policyChecks = mapOf("runSafetyGateChecks" to "SafetyGateTest",
     "runAppearancePublisherChecks" to "AppearancePublisherTest",
     "runGleoCabinActionChecks" to "GleoCabinActionTest", "runCabinSettingsChecks" to "CabinSettingsTest",
     "runCabinControlChecks" to "CabinControlTest", "runCabinActuatorChecks" to "CabinActuatorTest",
-    "runRestInterruptionChecks" to "RestInterruptionTest").map { (task, entry) ->
+    "runRestInterruptionChecks" to "RestInterruptionTest", "runRestPlaceChecks" to "RestPlaceTest").map { (task, entry) ->
     tasks.register<JavaExec>(task) {
         group = "verification"
         description = "Runs pure Java policy assertions on the build JVM, without Android stubs."

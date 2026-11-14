@@ -78,6 +78,14 @@ object LifeRestChecks {
         val banned = listOf("진단", "질환", "치료", "위험", "스트레스 지수", "자동으로 시작")
         DayMoment.entries.forEach { m -> R.card(m, on, plan)?.let { c -> verify(banned.none { (c.title + c.body).contains(it) }, "card wording $m") } }
 
+        // 퇴근 알림: 다음 켜진 요일의 18:15
+        verify(R.nextReminder(at(mon, 12, 0), CommuteSettings()) == null, "reminder off with commute off")
+        verify(R.nextReminder(at(mon, 12, 0), on) == at(mon, 18, 15), "today's window start")
+        verify(R.nextReminder(at(mon, 18, 15), on) == at(mon.plusDays(1), 18, 15), "strictly after now")
+        verify(R.nextReminder(at(fri, 19, 0), on) == at(mon.plusDays(7), 18, 15), "skips the weekend")
+        verify(R.nextReminder(at(mon, 12, 0), on.copy(days = setOf(DayOfWeek.SUNDAY))) == at(mon.plusDays(6), 18, 15), "one day a week")
+        verify(R.nextReminder(at(mon, 23, 50), late.copy(days = setOf(DayOfWeek.MONDAY))) == at(mon.plusDays(7), 23, 15), "late evening next week")
+
         // ---- Warmup
         WORKOUT_TYPES.forEach { t ->
             val total = WarmupGuide.totalSeconds(t)

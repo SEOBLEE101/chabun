@@ -49,6 +49,21 @@ export function validateCabin(input) {
   return clone(input);
 }
 
+/** Korea-only coordinates rounded to 4 decimals (about 11 m); both null when the place has no point. */
+export const KR_LAT = [33, 39], KR_LON = [124, 132];
+export const round4 = value => Math.round(value * 1e4) / 1e4;
+export const inKorea = (lat, lon) => Number.isFinite(lat) && Number.isFinite(lon) && lat >= KR_LAT[0] && lat <= KR_LAT[1] && lon >= KR_LON[0] && lon <= KR_LON[1];
+
+/** One 쉬어 갈 곳 the phone hands to the car: name, address and an optional point. No visits, favourites or history. */
+export function validatePlace(input) {
+  keys(input, ['name', 'address', 'lat', 'lon']);
+  need(typeof input.name === 'string' && input.name.trim().length >= 1 && input.name.trim().length <= 40 && !/[\u0000-\u001f\u007f]/.test(input.name), 'INVALID_PLACE', '장소 이름은 1~40자로 보내 주세요.');
+  need(typeof input.address === 'string' && input.address.length <= 120 && !/[\u0000-\u001f\u007f]/.test(input.address), 'INVALID_PLACE', '주소는 120자 이내로 보내 주세요.');
+  const none = input.lat === null && input.lon === null;
+  need(none || (typeof input.lat === 'number' && typeof input.lon === 'number' && inKorea(input.lat, input.lon)), 'INVALID_PLACE', '장소 위치를 확인해 주세요.');
+  return { name: input.name.trim(), address: input.address.trim(), lat: none ? null : round4(input.lat), lon: none ? null : round4(input.lon) };
+}
+
 /** In-memory synthetic-only coordinator. Never contacts a device, health store, or location API. */
 export class ContinuityEngine {
   constructor({ now = Date.now() } = {}) {
@@ -57,7 +72,7 @@ export class ContinuityEngine {
       demo: true, revision: 0, now: this.iso(), presets: clone(catalog), selectedId: 'quiet_rest', defaultId: 'quiet_rest', autoDefaultOnRest: false,
       feeling: 'skip', recommendation: null, plan: null,
       devices: {
-        vehicle: { parked: true, proposal: null, confirmedPresetId: null, simulated: true },
+        vehicle: { parked: true, proposal: null, confirmedPresetId: null, simulated: true, place: null },
         home: { id: 'home-ac', name: '예시 집 · 거실 에어컨', ...clone(this.physical), revision: 0, online: true, updatedBy: 'fixture', observedAt: this.iso() }
       },
       events: [], providers: [
@@ -137,6 +152,14 @@ export class ContinuityEngine {
         this.state.devices.vehicle.confirmedPresetId = null;
         this.event('phone', '폰에서 고른 쉼과 차 안 설정을 차량에 제안했어요. 시작과 적용은 차량 화면에서 해요.'); break;
       }
+      case 'propose_place':
+        // Only the place itself; the car starts any 길안내 on its own screen.
+        keys(p, ['place']); this.state.devices.vehicle.place = { id: 'place-' + randomUUID(), ...validatePlace(p.place) };
+        this.event('phone', '폰에서 쉬어 갈 곳을 차량에 보냈어요. 길안내는 차량 화면에서 직접 시작해요.'); break;
+      case 'clear_place':
+        keys(p, ['id']); need(typeof p.id === 'string', 'INVALID_ID', '장소를 다시 확인해 주세요.');
+        need(this.state.devices.vehicle.place?.id === p.id, 'PLACE_CHANGED', '쉬어 갈 곳이 바뀌었어요. 최신 내용을 확인해 주세요.', 409);
+        this.state.devices.vehicle.place = null; this.event('vehicle', '차량에서 쉬어 갈 곳을 확인했어요.'); break;
       case 'accept_vehicle':
         keys(p, ['origin']); need(p.origin === 'vehicle' && this.state.devices.vehicle.parked, 'VEHICLE_NOT_PARKED', '예시 차량의 주차 상태에서 확인해 주세요.');
         need(this.state.devices.vehicle.proposal, 'NO_PROPOSAL', '먼저 프리셋을 제안해 주세요.');

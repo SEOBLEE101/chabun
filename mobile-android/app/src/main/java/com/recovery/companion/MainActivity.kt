@@ -64,6 +64,15 @@ class MainActivity : ComponentActivity(), PitApp {
         refreshHome()
     }
     override var heartNudgeShown = false; private set
+    private val notificationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        LifeRestPrefs(this).eveningReminder = granted; LifeRestAlarm.reschedule(this)
+        if (!granted) shell.report("알림을 허용하지 않아 퇴근 알림을 켜지 않았어요. 홈 카드는 그대로 보여요.")
+        refreshHome()
+    }
+    override fun setEveningReminder(on: Boolean) {
+        if (on && !LifeRestAlarm.canNotify(this)) { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS); return }
+        LifeRestPrefs(this).eveningReminder = on; LifeRestAlarm.reschedule(this); refreshHome()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
