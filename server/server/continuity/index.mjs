@@ -53,7 +53,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   else {
     const server = createContinuityServer();
     server.on('error', error => { console.error('Cannot open local demo: ' + error.code); process.exitCode = 1; });
-    server.listen(port, '127.0.0.1', () => { console.log('Pit-In presets & arrival demo: http://127.0.0.1:' + server.address().port); console.log('Synthetic-only: no external devices, health records, or location. Ctrl+C stops the server.'); });
+    server.listen(port, '127.0.0.1', () => { console.log('차분 presets & arrival demo: http://127.0.0.1:' + server.address().port); console.log('Synthetic-only: no external devices, health records, or location. Ctrl+C stops the server.'); });
     for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { server.closeAllConnections(); server.close(); });
   }
 }

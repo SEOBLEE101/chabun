@@ -218,7 +218,7 @@ test('origin-form requests keep local and explicitly allowlisted Host and Origin
     for (const scheme of ['http', 'https']) {
       const answer = await rawCall('/api/health', { Host: host, Origin: `${scheme}://${host}` });
       assert.equal(answer.status, 200, `${scheme}://${host}`);
-      assert.equal(answer.body.service, 'pit-in-relay');
+      assert.equal(answer.body.service, 'chabun-relay');
     }
   }
   const untrusted = await rawCall('/api/health', { Host: 'evil.example' });
@@ -386,7 +386,7 @@ test('plain HTTP accepts demo only and forwarded TLS claims cannot change transp
 test('verified TLS preserves explicit confirmation, role authorization, consent, TTL and revocation', async t => {
   const { call, summary, advance } = await fixture(t, { tls: testTls });
   const healthy = await call('/api/health');
-  assert.deepEqual(healthy.body, { service: 'pit-in-relay', mode: 'local-prototype', version: 1, storage: 'ephemeral-memory', transport: 'tls' });
+  assert.deepEqual(healthy.body, { service: 'chabun-relay', mode: 'local-prototype', version: 1, storage: 'ephemeral-memory', transport: 'tls' });
   assert.ok(['TLSv1.2', 'TLSv1.3'].includes(healthy.protocol));
   const car = (await call('/api/pairings', 'POST', {})).body;
   const phone = (await call('/api/pairings/claim', 'POST', { code: car.code })).body;

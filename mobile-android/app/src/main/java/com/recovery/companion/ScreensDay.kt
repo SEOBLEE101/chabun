@@ -19,7 +19,7 @@ import java.util.UUID
 /** 홈 '지금' 카드: 출퇴근·웜업·운동 뒤에만 보인다. 제안만 하고 시작은 사용자가 누른다. */
 fun momentCardFor(screen: Screen): View? {
     val ctx = screen.ctx; val ui = screen.ui; val app = screen.app; val shell = screen.shell
-    val prefs = LifeRestPrefs(ctx)
+    val prefs = ChabunDayPrefs(ctx)
     val now = LocalDateTime.now()
     val plan = prefs.plan(now)
     val commute = prefs.commute
@@ -57,7 +57,7 @@ fun momentCardFor(screen: Screen): View? {
                 })
             }
             addView(ui.ghost("오늘은 닫기", screen.t.ink3, 14f) { prefs.dismiss(moment, anchor); screen.rebuild() })
-            addView(ui.ghost("설정", screen.t.ink3, 14f) { shell.push(LifeRestScreen(shell)) })
+            addView(ui.ghost("설정", screen.t.ink3, 14f) { shell.push(ChabunDayScreen(shell)) })
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(4) })
     }
 }
@@ -65,9 +65,9 @@ fun momentCardFor(screen: Screen): View? {
 private fun dayLabel(d: DayOfWeek) = "월화수목금토일"[d.value - 1].toString()
 private fun hm(t: LocalTime) = "%d:%02d".format(t.hour, t.minute)
 
-class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
+class ChabunDayScreen(shell: PhoneShell) : Screen(shell) {
     override val gap = 24f
-    private val prefs = LifeRestPrefs(ctx)
+    private val prefs = ChabunDayPrefs(ctx)
 
     override fun fill(c: GapLayout) {
         c.addView(ui.backHeader(null, "하루 쉼", { shell.pop() }), LinearLayout.LayoutParams(-1, -2).apply { topMargin = -ui.dp(8); marginStart = -ui.dp(10) })
@@ -96,7 +96,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
     }
 
     private fun save(block: () -> Unit) {
-        try { block(); LifeRestAlarm.reschedule(ctx); rebuild() } catch (e: IllegalArgumentException) { report(e.message ?: "저장하지 못했어요.") }
+        try { block(); ChabunDayAlarm.reschedule(ctx); rebuild() } catch (e: IllegalArgumentException) { report(e.message ?: "저장하지 못했어요.") }
     }
 
     private fun commuteSection(c: GapLayout) {
@@ -113,7 +113,7 @@ class LifeRestScreen(shell: PhoneShell) : Screen(shell) {
                 rows += ui.row("today", "퇴근", "15분 전부터 한 시간쯤 ‘${presetName(s.eveningPresetId)}’", end = hm(s.evening)) {
                     pickTime(s.evening) { t -> save { prefs.commute = prefs.commute.copy(evening = t) } }
                 }
-                rows += ui.toggleRow("퇴근 무렵 알림", "퇴근 15분 전쯤 한 번 알려요. 10분쯤 늦을 수 있어요.", prefs.eveningReminder && LifeRestAlarm.canNotify(ctx)) { on -> app.setEveningReminder(on) }
+                rows += ui.toggleRow("퇴근 무렵 알림", "퇴근 15분 전쯤 한 번 알려요. 10분쯤 늦을 수 있어요.", prefs.eveningReminder && ChabunDayAlarm.canNotify(ctx)) { on -> app.setEveningReminder(on) }
             }
             addView(ui.list(*rows.toTypedArray()))
             if (s.enabled) {
@@ -228,7 +228,7 @@ class WarmupScreen(shell: PhoneShell, private val type: String) : Screen(shell) 
 
 class PlacesScreen(shell: PhoneShell) : Screen(shell) {
     override val gap = 24f
-    private val prefs = LifeRestPrefs(ctx)
+    private val prefs = ChabunDayPrefs(ctx)
     private var kind = PlaceKind.PARK
     private var draft = ""
     private var query = ""

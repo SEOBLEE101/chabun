@@ -108,7 +108,7 @@ export function createApp({ now = Date.now, allowedHosts = [], tls } = {}) {
       if (req.headers['sec-fetch-site'] === 'cross-site') fail(403, 'ORIGIN_NOT_ALLOWED', '다른 사이트에서 시작한 요청은 허용하지 않습니다.');
       const path = url.pathname;
       if (path.startsWith('/api/') && url.search) fail(400, 'NO_QUERY_DATA', '인증 정보와 운동 정보는 URL에 넣지 마세요.');
-      if (req.method === 'GET' && path === '/api/health') return json(res, 200, { service: 'pit-in-relay', mode: 'local-prototype', version: 1, storage: 'ephemeral-memory', transport: encrypted ? 'tls' : 'plain' });
+      if (req.method === 'GET' && path === '/api/health') return json(res, 200, { service: 'chabun-relay', mode: 'local-prototype', version: 1, storage: 'ephemeral-memory', transport: encrypted ? 'tls' : 'plain' });
       if (req.method === 'POST' && path === '/api/pairings') {
         rate(req, 'create', 10);
         if (!keysExactly(await readJson(req), [])) fail(400, 'UNEXPECTED_FIELDS', '차량 연결 생성에는 개인정보가 필요하지 않습니다.');

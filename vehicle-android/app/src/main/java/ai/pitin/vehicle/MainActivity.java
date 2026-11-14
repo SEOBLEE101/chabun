@@ -157,7 +157,7 @@ public final class MainActivity extends Activity {
         main.removeCallbacks(keepReadingWhileRestoring);
         super.onStart(); foreground = true; expireRevocation(); main.post(tick);
         PresetLink.get(this).addListener(restIntake);
-        PresetLink.get(this).enterForeground(); // theme reports run while a Pit-In screen is in front
+        PresetLink.get(this).enterForeground(); // theme reports run while a 차분 screen is in front
     }
 
     @Override public void onStop() {

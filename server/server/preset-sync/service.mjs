@@ -37,9 +37,9 @@ async function body(req) {
 const staticFiles=new Map([['/',['web/continuity/index.html','text/html; charset=utf-8']],['/index.html',['web/continuity/index.html','text/html; charset=utf-8']],['/styles.css',['web/continuity/styles.css','text/css; charset=utf-8']],['/app.mjs',['web/continuity/app.mjs','text/javascript; charset=utf-8']],['/sync.mjs',['web/continuity/sync.mjs','text/javascript; charset=utf-8']],['/fonts/NotoSansKR.ttf',['web/fonts/NotoSansKR.ttf','font/ttf']],['/fonts/OFL.txt',['web/fonts/OFL.txt','text/plain']]]);
 staticFiles.set('/rest-guide/', ['web/rest-guide/index.html', 'text/html; charset=utf-8']);
 staticFiles.set('/rest-guide/styles.css', ['web/rest-guide/styles.css', 'text/css; charset=utf-8']);
-const motionReference = 'reference/motion-handoff-2026-10-25/Pit-In/';
-staticFiles.set('/rest-guide/assets/hybrid-motion.mp4', [motionReference + 'hybrid-motion/renders/pit-in-hybrid-motion.mp4', 'video/mp4']);
-staticFiles.set('/rest-guide/assets/code-motion.mp4', [motionReference + 'code-motion/renders/pit-in-code-motion.mp4', 'video/mp4']);
+const motionReference = 'reference/motion-handoff-2026-10-25/Chabun/';
+staticFiles.set('/rest-guide/assets/hybrid-motion.mp4', [motionReference + 'hybrid-motion/renders/chabun-hybrid-motion.mp4', 'video/mp4']);
+staticFiles.set('/rest-guide/assets/code-motion.mp4', [motionReference + 'code-motion/renders/chabun-code-motion.mp4', 'video/mp4']);
 for (const scene of ['graphite-guided', 'graphite-resume', 'pearl-guided', 'umber-freedom']) {
   const name = scene + '-loop-10s.mp4';
   staticFiles.set('/rest-guide/assets/' + name, [motionReference + 'grok-videos/loops/' + name, 'video/mp4']);

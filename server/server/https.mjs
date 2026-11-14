@@ -22,16 +22,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const app = await createHttpsRelay();
     app.server.on('error', error => {
-      console.error(`Pit-In HTTPS could not start: ${error.code ?? 'UNKNOWN'}`);
+      console.error(`차분 HTTPS could not start: ${error.code ?? 'UNKNOWN'}`);
       process.exitCode = 1;
     });
     app.server.listen(app.port, app.host, () => {
-      console.log(`Pit-In local TLS relay: https://${app.host}:${app.port}`);
+      console.log(`차분 local TLS relay: https://${app.host}:${app.port}`);
       console.log('Verify the certificate on every client. Explicit pairing and summary consent are required.');
     });
     for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => { await app.close(); process.exit(0); });
   } catch (error) {
-    console.error(`Pit-In HTTPS configuration failed: ${error.code ?? 'CHECK_TLS_PEM_PATHS_AND_PORT'}`);
+    console.error(`차분 HTTPS configuration failed: ${error.code ?? 'CHECK_TLS_PEM_PATHS_AND_PORT'}`);
     process.exitCode = 1;
   }
 }

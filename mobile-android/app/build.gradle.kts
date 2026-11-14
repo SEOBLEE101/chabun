@@ -140,11 +140,11 @@ tasks.register<JavaExec>("runPresetSyncResponseChecks") {
     mainClass.set("com.recovery.companion.PresetSyncResponseChecks")
 }
 
-tasks.register<JavaExec>("runLifeRestChecks") {
+tasks.register<JavaExec>("runChabunDayChecks") {
     group = "verification"
-    description = "Runs the pure Kotlin life-wide rest policy checks (DayRhythm, Warmup, HeartNudge, PlaceBook); no Android device."
+    description = "Runs the pure Kotlin day-rest policy checks (DayRhythm, Warmup, HeartNudge, PlaceBook); no Android device."
     dependsOn("compileDebugUnitTestKotlin")
     classpath(files(layout.buildDirectory.dir("tmp/kotlin-classes/debug"), layout.buildDirectory.dir("tmp/kotlin-classes/debugUnitTest")))
     classpath(configurations.getByName("debugUnitTestRuntimeClasspath"))
-    mainClass.set("com.recovery.companion.LifeRestChecks")
+    mainClass.set("com.recovery.companion.ChabunDayChecks")
 }

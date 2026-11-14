@@ -59,13 +59,13 @@ class MainActivity : ComponentActivity(), PitApp {
     }
     private val heartPermission = HealthPermission.getReadPermission(HeartRateRecord::class)
     private val heartPermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
-        if (heartPermission in granted && exercisePermission in granted) { LifeRestPrefs(this).heartNudge = true; checkHeartNudge() }
-        else { LifeRestPrefs(this).heartNudge = false; shell.report("심박과 운동 읽기를 모두 허용해야 켤 수 있어요. 운동 직후에는 제안하지 않으려고 운동 시간도 읽어요.") }
+        if (heartPermission in granted && exercisePermission in granted) { ChabunDayPrefs(this).heartNudge = true; checkHeartNudge() }
+        else { ChabunDayPrefs(this).heartNudge = false; shell.report("심박과 운동 읽기를 모두 허용해야 켤 수 있어요. 운동 직후에는 제안하지 않으려고 운동 시간도 읽어요.") }
         refreshHome()
     }
     /** 제안 카드는 저장된 기억으로 정한다(화면 회전·재시작에도 유지): 띄운 뒤 3시간, '오늘은 괜찮아요' 전까지. */
     override val heartNudgeShown: Boolean get() {
-        val p = LifeRestPrefs(this); if (!p.heartNudge) return false
+        val p = ChabunDayPrefs(this); if (!p.heartNudge) return false
         val m = p.nudgeMemory; val shown = m.lastShownAt ?: return false; val now = Instant.now()
         // '오늘은 괜찮아요'는 그 카드가 뜬 날부터 유효하다(23:00 카드를 닫고 자정이 지나도 다시 뜨지 않게).
         val shownDay = shown.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity(), PitApp {
     }
     private var heartCheckJob: kotlinx.coroutines.Job? = null
     private val notificationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
-        LifeRestPrefs(this).eveningReminder = granted; LifeRestAlarm.reschedule(this)
+        ChabunDayPrefs(this).eveningReminder = granted; ChabunDayAlarm.reschedule(this)
         if (!granted) shell.report("알림을 허용하지 않아 퇴근 알림을 켜지 않았어요. 홈 카드는 그대로 보여요.")
         refreshHome()
     }
@@ -103,7 +103,7 @@ class MainActivity : ComponentActivity(), PitApp {
                     (0..9).map { HeartRateRecord.Sample(recentStart.plus(Duration.ofMinutes(it.toLong())), 98L) },
                     androidx.health.connect.client.records.metadata.Metadata.manualEntry())
                 records.chunked(50).forEach { client.insertRecords(it) }
-                LifeRestPrefs(this@MainActivity).nudgeMemory = NudgeMemory()
+                ChabunDayPrefs(this@MainActivity).nudgeMemory = NudgeMemory()
                 shell.report("합성 심박 ${records.sumOf { it.samples.size }}개를 넣었어요. 홈으로 돌아가 다시 열면 제안을 확인해요.")
                 checkHeartNudge()
             } catch (e: CancellationException) { throw e }
@@ -111,8 +111,8 @@ class MainActivity : ComponentActivity(), PitApp {
         }
     }
     override fun setEveningReminder(on: Boolean) {
-        if (on && !LifeRestAlarm.canNotify(this)) { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS); return }
-        LifeRestPrefs(this).eveningReminder = on; LifeRestAlarm.reschedule(this); refreshHome()
+        if (on && !ChabunDayAlarm.canNotify(this)) { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS); return }
+        ChabunDayPrefs(this).eveningReminder = on; ChabunDayAlarm.reschedule(this); refreshHome()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -176,7 +176,7 @@ class MainActivity : ComponentActivity(), PitApp {
         refreshHealthAccess()
         checkHeartNudge()
         checkPlannedWorkout()
-        LifeRestAlarm.reschedule(this)
+        ChabunDayAlarm.reschedule(this)
         foreground = true
         appearanceSync.start(::updateAppearance)
         expireRevocationIfNeeded()
@@ -253,7 +253,7 @@ class MainActivity : ComponentActivity(), PitApp {
     }
 
     override fun setHeartNudge(on: Boolean) {
-        val prefs = LifeRestPrefs(this)
+        val prefs = ChabunDayPrefs(this)
         if (!on) { heartCheckJob?.cancel(); prefs.heartNudge = false; refreshHome(); return }
         lifecycleScope.launch {
             try {
@@ -267,7 +267,7 @@ class MainActivity : ComponentActivity(), PitApp {
     }
 
     override fun dismissHeartNudge() {
-        val prefs = LifeRestPrefs(this)
+        val prefs = ChabunDayPrefs(this)
         prefs.nudgeMemory = prefs.nudgeMemory.copy(dismissedOn = java.time.LocalDate.now())
         refreshHome()
     }
@@ -275,7 +275,7 @@ class MainActivity : ComponentActivity(), PitApp {
     override var plannedWorkoutEnd: Instant? = null; private set
     /** 오늘 운동 계획이 있고 운동 읽기를 이미 허용했을 때만: 계획 무렵 끝난 운동의 끝 시각 하나만 기억한다(요약·전송에는 쓰지 않는다). */
     private fun checkPlannedWorkout() {
-        val plan = LifeRestPrefs(this).plan(java.time.LocalDateTime.now()) ?: run { plannedWorkoutEnd = null; return }
+        val plan = ChabunDayPrefs(this).plan(java.time.LocalDateTime.now()) ?: run { plannedWorkoutEnd = null; return }
         lifecycleScope.launch {
             try {
                 if (HealthConnectClient.getSdkStatus(this@MainActivity) != HealthConnectClient.SDK_AVAILABLE) return@launch
@@ -295,7 +295,7 @@ class MainActivity : ComponentActivity(), PitApp {
 
     /** 사용자가 켠 경우에만, 앱을 열 때 최근 7일 심박과 운동을 읽어 제안 여부를 정한다. 읽은 기록은 저장하지 않는다. */
     private fun checkHeartNudge() {
-        val prefs = LifeRestPrefs(this)
+        val prefs = ChabunDayPrefs(this)
         if (!prefs.heartNudge || heartCheckJob?.isActive == true) return
         heartCheckJob = lifecycleScope.launch {
             try {
@@ -329,7 +329,7 @@ class MainActivity : ComponentActivity(), PitApp {
                     val baseline = HeartNudgePolicy.baseline(samples, exercises, now)
                     HeartNudgePolicy.decide(true, samples, exercises, baseline, prefs.nudgeMemory, now, java.time.ZoneId.systemDefault())
                 }
-                if (result == NudgeResult.SUGGEST && LifeRestPrefs(this@MainActivity).heartNudge) {
+                if (result == NudgeResult.SUGGEST && ChabunDayPrefs(this@MainActivity).heartNudge) {
                     prefs.nudgeMemory = prefs.nudgeMemory.copy(lastShownAt = now)
                     refreshHome()
                 }

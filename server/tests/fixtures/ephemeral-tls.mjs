@@ -23,7 +23,7 @@ export function createTestTlsFixture() {
   const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const serial = randomBytes(16); serial[0] |= 0x80; // The leading zero below is then required by DER.
   const algorithm = seq(der(6, hex('2a864886f70d01010b')), der(5));
-  const name = seq(der(0x31, seq(der(6, hex('550403')), der(12, Buffer.from('Pit-In EPHEMERAL TEST ONLY')))));
+  const name = seq(der(0x31, seq(der(6, hex('550403')), der(12, Buffer.from('Chabun EPHEMERAL TEST ONLY')))));
   const validity = seq(der(24, Buffer.from('20200101000000Z')), der(24, Buffer.from('21200101000000Z')));
   const san = seq(der(0x82, Buffer.from('localhost')), der(0x87, Buffer.from([127, 0, 0, 1])));
   const extensions = der(0xa3, seq(
@@ -36,7 +36,7 @@ export function createTestTlsFixture() {
   const key = Buffer.from(privateKey.export({ type: 'pkcs8', format: 'pem' }));
   const parsed = new X509Certificate(cert);
   if (!parsed.verify(publicKey) || !parsed.checkIP('127.0.0.1') || !parsed.checkHost('localhost')) throw new Error('Invalid ephemeral TLS fixture');
-  const directory = mkdtempSync(join(tmpdir(), 'pitin-test-tls-'));
+  const directory = mkdtempSync(join(tmpdir(), 'chabun-test-tls-'));
   const certPath = join(directory, 'cert.pem'), keyPath = join(directory, 'key.pem');
   try {
     writeFileSync(certPath, cert, { mode: 0o600 });

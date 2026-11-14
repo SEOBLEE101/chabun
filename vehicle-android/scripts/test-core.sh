@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-build_dir="$(mktemp -d "${TMPDIR:-/tmp}/pitin-vehicle-tests.XXXXXX")"
+build_dir="$(mktemp -d "${TMPDIR:-/tmp}/chabun-vehicle-tests.XXXXXX")"
 trap 'rm -rf -- "$build_dir"' EXIT
 sources=(
   "$project_dir/app/src/main/java/ai/pitin/vehicle/SafetyGate.java"

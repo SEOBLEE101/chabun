@@ -16,12 +16,12 @@
 
 실제 차량 앱은 Grok 정적 곡선 위에 코드로 제어하는 점 하나를 표시하고 4초 들숨·4초 날숨 세션 시간에 맞춰 움직입니다. 일시정지 중 시간·안내·점은 동결됩니다. 영상의 자동 네 장면 전환·테마 페이드·정지 화면의 움직이는 후광은 쇼릴 참고 표현입니다. Pearl/Umber 참고 영상의 존재는 해당 테마의 실제 차량 구현·실행 검증을 의미하지 않습니다.
 
-루트 서버가 아래 URL을 `reference/motion-handoff-2026-10-25/Pit-In/`의 원본 파일로 매핑합니다. 추가 미디어를 복사하지 않으며, 경로·바이트 수·SHA-256은 `asset-manifest.json`에 기록했습니다.
+루트 서버가 아래 URL을 `reference/motion-handoff-2026-10-25/Chabun/`의 원본 파일로 매핑합니다. 추가 미디어를 복사하지 않으며, 경로·바이트 수·SHA-256은 `asset-manifest.json`에 기록했습니다.
 
 | URL (`/rest-guide/assets/` 아래) | 인계 폴더 내 원본 |
 | --- | --- |
-| `hybrid-motion.mp4` | `hybrid-motion/renders/pit-in-hybrid-motion.mp4` |
-| `code-motion.mp4` | `code-motion/renders/pit-in-code-motion.mp4` |
+| `hybrid-motion.mp4` | `hybrid-motion/renders/chabun-hybrid-motion.mp4` |
+| `code-motion.mp4` | `code-motion/renders/chabun-code-motion.mp4` |
 | `graphite-guided-loop-10s.mp4` | `grok-videos/loops/graphite-guided-loop-10s.mp4` |
 | `graphite-resume-loop-10s.mp4` | `grok-videos/loops/graphite-resume-loop-10s.mp4` |
 | `pearl-guided-loop-10s.mp4` | `grok-videos/loops/pearl-guided-loop-10s.mp4` |

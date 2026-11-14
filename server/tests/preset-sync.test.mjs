@@ -47,7 +47,7 @@ test('Grok reference media stays in the browser allowlist and supports bounded v
     assert.ok(Number(response.headers['content-length'])>1000);
     assert.equal((await asset(url,{secure:true})).status,404);
   }
-  assert.equal((await asset('/reference/motion-handoff-2026-10-25/Pit-In/hybrid-motion/AGENTS.md')).status,404);
+  assert.equal((await asset('/reference/motion-handoff-2026-10-25/Chabun/hybrid-motion/AGENTS.md')).status,404);
 });
 async function fixture(t, options={}) {
   let time = Date.now();
@@ -186,7 +186,7 @@ test('only the phone may send a rest with its cabin settings to the car (propose
 });
 
 test('atomic preferences survive restart only; corrupt files and duplicate writers fail closed',async t=>{
-  const dir=mkdtempSync(join(tmpdir(),'pitin-sync-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const dir=mkdtempSync(join(tmpdir(),'chabun-sync-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
   const storeFile=join(dir,'preferences.json');const f=await fixture(t,{storeFile});
   const native=await f.pair();
   assert.throws(()=>createPresetSyncService({storeFile,tls}));
@@ -204,7 +204,7 @@ test('atomic preferences survive restart only; corrupt files and duplicate write
 });
 
 test('failed durable commit rolls memory revision and idempotency back, then same request succeeds',async t=>{
-  const dir=mkdtempSync(join(tmpdir(),'pitin-sync-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const dir=mkdtempSync(join(tmpdir(),'chabun-sync-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
   const storeFile=join(dir,'preferences.json'),f=await fixture(t,{storeFile});
   mkdirSync(storeFile);const id=randomUUID();
   const failed=await f.command('select_preset',{id:'cool_down'},{requestId:id});assert.equal(failed.status,503);assert.equal(f.service.engine.getState().revision,0);
@@ -247,7 +247,7 @@ test('pairing expiry, claim rate bounds, cookie isolation, UUID and JSON type ch
 });
 
 test('explicit stale lock recovery refuses live and malformed PIDs, recovers dead PID without touching preferences',async t=>{
-  const dir=mkdtempSync(join(tmpdir(),'pitin-lock-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const dir=mkdtempSync(join(tmpdir(),'chabun-lock-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
   const file=join(dir,'preferences.json');writeFileSync(file,'preserve exactly');writeFileSync(file+'.lock',String(process.pid));
   assert.throws(()=>recoverStalePreferenceLock(file));assert.equal(readFileSync(file+'.lock','utf8'),String(process.pid));
   writeFileSync(file+'.lock','not a pid');assert.throws(()=>recoverStalePreferenceLock(file));

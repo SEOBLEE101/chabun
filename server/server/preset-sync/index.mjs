@@ -53,7 +53,7 @@ if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).
       server.on('error',async()=>{console.error('Preset sync listener unavailable. Check ports and private storage.');process.exitCode=1;await app.close();});
       server.listen(port,'127.0.0.1');
     }
-    console.log(`Pit-In preset sync: http://127.0.0.1:${httpPort} / HTTPS native port ${tlsPort}. Synthetic preferences only.`);
+    console.log(`차분 preset sync: http://127.0.0.1:${httpPort} / HTTPS native port ${tlsPort}. Synthetic preferences only.`);
     for(const signal of ['SIGINT','SIGTERM'])process.once(signal,async()=>{await app.close();});
   } catch(error) {console.error(error?.message===MISSING_TLS?MISSING_TLS:'Preset sync startup refused. Check TLS, private storage integrity, ACL, and writer lock.');process.exitCode=1;if(app)await app.close();}
 }

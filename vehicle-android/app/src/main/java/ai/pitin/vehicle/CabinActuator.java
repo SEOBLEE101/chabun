@@ -47,7 +47,7 @@ abstract class CabinActuator implements AutoCloseable {
     static final long CALL_TIMEOUT_MS = 3_000, SETTLE_MS = 250, RECHECK_MS = 1_000;
     static final int MAX_SESSIONS = 4;
     /** One line per step (item, car value, answer) so a run can be checked with logcat. No personal data. */
-    static final String TAG = "PitInCabin";
+    static final String TAG = "ChabunCabin";
     static Consumer<String> log = line -> { };
 
     /** What happened to one asked step. {@code target} and {@code observed} are raw car values. */

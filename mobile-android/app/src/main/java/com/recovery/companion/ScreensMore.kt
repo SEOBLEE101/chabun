@@ -395,10 +395,10 @@ class PrivacyScreen(shell: PhoneShell) : Screen(shell) {
         c.addView(ui.list(
             ui.row("phone", "이 폰에 있는 것", "나의 쉼 ${store.all().size}개 · 화면 분위기 · 차 안 설정", chevron = false,
                 endView = ui.ghost("지우기", t.ink2, 13f) { clearSheet(customs) }.apply { setPadding(ui.dp(4), 0, ui.dp(4), 0) }),
-            ui.row("pulse", "운동 기록 읽기", (if (PitPrefs(ctx).healthSource == "samsung") "삼성 헬스" else "Health Connect") + (if (LifeRestPrefs(ctx).readsExerciseOnOpen()) " · 누를 때, 그리고 운동 계획·심박 제안을 켠 동안 앱을 열 때 운동 시간을 읽어요(저장 안 함)" else " · 누를 때만 최근 운동 하나를 읽어요"), chevron = false,
+            ui.row("pulse", "운동 기록 읽기", (if (PitPrefs(ctx).healthSource == "samsung") "삼성 헬스" else "Health Connect") + (if (ChabunDayPrefs(ctx).readsExerciseOnOpen()) " · 누를 때, 그리고 운동 계획·심박 제안을 켠 동안 앱을 열 때 운동 시간을 읽어요(저장 안 함)" else " · 누를 때만 최근 운동 하나를 읽어요"), chevron = false,
                 endView = ui.ghost("권한 설정", t.ink2, 13f) { app.act(CompanionAction.HEALTH_SETTINGS) }.apply { setPadding(ui.dp(4), 0, ui.dp(4), 0) }),
-            ui.row("today", "하루 쉼", "출퇴근 시각 · 오늘 운동 · 쉬어 갈 곳 · 이 폰에만 있어요" + (if (LifeRestPrefs(ctx).heartNudge) " · 심박은 앱을 열 때만 읽고 저장하지 않아요" else ""), chevron = false,
-                endView = ui.ghost("지우기", t.ink2, 13f) { LifeRestPrefs(ctx).clearAll(); LifeRestAlarm.reschedule(ctx); app.setHeartNudge(false); report("하루 쉼 설정과 장소를 지웠어요.") }.apply { setPadding(ui.dp(4), 0, ui.dp(4), 0) })
+            ui.row("today", "하루 쉼", "출퇴근 시각 · 오늘 운동 · 쉬어 갈 곳 · 이 폰에만 있어요" + (if (ChabunDayPrefs(ctx).heartNudge) " · 심박은 앱을 열 때만 읽고 저장하지 않아요" else ""), chevron = false,
+                endView = ui.ghost("지우기", t.ink2, 13f) { ChabunDayPrefs(ctx).clearAll(); ChabunDayAlarm.reschedule(ctx); app.setHeartNudge(false); report("하루 쉼 설정과 장소를 지웠어요.") }.apply { setPadding(ui.dp(4), 0, ui.dp(4), 0) })
         ))
         c.addView(ui.vstack(12f).apply {
             addView(ui.h2("차에 보내는 건 이것뿐이에요", 17f))

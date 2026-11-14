@@ -1,4 +1,4 @@
-# 차분(구 Pit-In) Android phone companion
+# 차분 Android phone companion
 
 > 개발하면서 남긴 기록입니다. 일부는 지난 시점의 내용이고, 이 저장소에 없는 문서를 가리킬 수 있습니다. 최신 설명은 저장소 맨 위 `README.md`를 보세요.
 >

@@ -141,9 +141,9 @@ cd ../mobile-android
 - 운동 기록은 폰에 둡니다. 사용자가 동의한 경우에만 운동 종류·시간(분)·마친 시각과 고른 쉼을 차에 전하고, 심박 원본과 위치는 보내지 않습니다.
 - 차 값은 주차 조건이 맞을 때만 바꾸고, SDK의 '성공' 응답이 아니라 다시 읽은 값으로 결과를 판단합니다.
 
-## 생활 전반 쉼 (feature/life-rest 브랜치)
+## 하루 쉼
 
-> 이 절은 `feature/life-rest` 브랜치의 기능이다. 제출한 커밋과 `apk/`의 APK에는 들어 있지 않다.
+> 2026-11-15 제출본에 들어 있다. 제출용 APK는 연결 서버 없이 동작하므로 장소 찾기와 차로 보내기는 개발용 빌드(연결 서버)에서 쓴다.
 
 운동 뒤 차에서 3분 쉬던 흐름을 하루의 틈(출근 전, 퇴근길, 운동 전후, 심박이 높게 이어질 때)으로 넓힌다. 앱은 쉼을 **제안만** 한다. 쉬기 시작과 길안내 시작은 언제나 사용자가 직접 누른다. 모든 기능은 기본으로 꺼져 있고, 위치 권한은 요청하지 않는다.
 
@@ -164,7 +164,7 @@ cd ../mobile-android
 - 서버: `npm run dev-tls` 뒤 `KAKAO_REST_KEY`(developers.kakao.com에서 발급한 REST API 키)를 환경변수로 두고 `npm run start:preset-sync`. 키가 없으면 장소 찾기는 `503 PLACES_UNAVAILABLE`, 직접 입력한 곳의 차로 보내기는 키 없이 된다. 검색은 연결당 1분 30번, 서버 전체 1분 120번.
 - 폰: `-PlocalTlsCa=<개발 CA pem>`으로 `:app:assembleLocalTlsDebug`, `adb reverse tcp:9447 tcp:9447`, 연결 › 취향 함께 쓰기로 공유 서버에 잇는다(번호는 `http://127.0.0.1:8792`에서 만들고 승인).
 - 차: `-PincludePleos=true -PlocalTlsCa=<개발 CA pem>`으로 `:app:assemblePleosLocalTlsDebug`, 폰 연결 › 함께 쓰는 쉼 목록에서 차량용 번호로 잇는다. Pleos 에뮬레이터에서는 Virtual Console(8088)을 이어 둬야 기어가 읽혀 '주차·정지' 확인이 된다.
-- 검사: 폰 `:app:runLifeRestChecks`, 차 `:app:runVehiclePolicyChecks`(RestPlace 포함), 서버 `npm test`. 내비 계측 시험은 `-PplaceNavAcceptance=true`로 androidTest를 만든 뒤 `am instrument -w ai.pitin.vehicle.pleos.test/ai.pitin.vehicle.PlaceNavigationInstrumentation`.
+- 검사: 폰 `:app:runChabunDayChecks`, 차 `:app:runVehiclePolicyChecks`(RestPlace 포함), 서버 `npm test`. 내비 계측 시험은 `-PplaceNavAcceptance=true`로 androidTest를 만든 뒤 `am instrument -w ai.pitin.vehicle.pleos.test/ai.pitin.vehicle.PlaceNavigationInstrumentation`.
 
 ### 확인한 것
 
@@ -173,7 +173,7 @@ cd ../mobile-android
 - 좌표가 있는 장소: 폰과 같은 요청(propose_place)을 시험 도구로 보내 차 카드 → '길안내 시작' → 서울시청 실제 길안내(22km)까지 확인. 길안내가 시작되면 다음에 '함께 쓰는 쉼'을 열 때 카드가 지워진다.
 - Pleos 에뮬레이터 계측 시험: 서울시청 좌표로 실제 길안내 시작, 서울숲은 이름 검색 화면. 에뮬레이터 내비는 약 7초 뒤 `onRouteStarted`로 답한다(문서의 `onRoutingCompleted`는 오지 않음).
 - NaviHelper 3.0.5 AAR 바이트코드: `RouteInfo`는 위도가 먼저다(문서의 Java 예제는 경도가 먼저라 틀림).
-- 자동 검사: 폰 `LifeRestChecks` 139개와 기존 폰 검사, 차 정책 검사(`RestPlaceTest` 27개 포함), 서버 109개.
+- 자동 검사: 폰 `ChabunDayChecks` 139개와 기존 폰 검사, 차 정책 검사(`RestPlaceTest` 27개 포함), 서버 109개.
 - 검토: Gemini Hydrogen·Carbon, Claude Opus 5.5(agy) 세 번의 독립 검토를 반영했다.
 
 ### 아직 못 한 것과 제한

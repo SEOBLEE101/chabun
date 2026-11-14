@@ -18,20 +18,20 @@ import java.time.ZoneId
  * 퇴근 알림(선택): 다음 켜진 요일의 퇴근 15분 전에 한 번. 정확한 알람 권한 없이 10분 폭의 setWindow만 쓴다
  * (SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM 선언 안 함). 알림은 제안일 뿐이고 누르면 앱 홈이 열린다.
  */
-object LifeRestAlarm {
-    const val ACTION = "com.recovery.companion.LIFE_REST_REMINDER"
-    private const val CHANNEL = "life_rest"
+object ChabunDayAlarm {
+    const val ACTION = "com.recovery.companion.CHABUN_DAY_REMINDER"
+    private const val CHANNEL = "chabun_day"
     private const val NOTIFICATION_ID = 4107
 
     private fun pending(ctx: Context): PendingIntent = PendingIntent.getBroadcast(ctx, 7,
-        Intent(ctx, LifeRestReceiver::class.java).setAction(ACTION), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        Intent(ctx, ChabunDayReceiver::class.java).setAction(ACTION), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
     /** 설정이 바뀔 때마다 부른다: 알림이 꺼져 있으면 예약을 지우기만 한다. */
     fun reschedule(ctx: Context) {
         val am = ctx.getSystemService(AlarmManager::class.java) ?: return
         val pi = pending(ctx)
         am.cancel(pi)
-        val prefs = LifeRestPrefs(ctx)
+        val prefs = ChabunDayPrefs(ctx)
         if (!prefs.eveningReminder) return
         val next = DayRhythmPolicy.nextReminder(LocalDateTime.now(), prefs.commute) ?: return
         // 절전(Doze) 중에도 울리게 하되 정확한 알람은 쓰지 않는다(몇 분 늦을 수 있음).
@@ -58,19 +58,19 @@ object LifeRestAlarm {
     }
 }
 
-class LifeRestReceiver : BroadcastReceiver() {
+class ChabunDayReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            LifeRestAlarm.ACTION -> {
-                val prefs = LifeRestPrefs(context)
+            ChabunDayAlarm.ACTION -> {
+                val prefs = ChabunDayPrefs(context)
                 val now = LocalDateTime.now()
                 // 퇴근 창 안에서만 알린다(요일은 창이 속한 날로 판단: 00:10 퇴근의 23:55 알림, Doze로 늦게 온 알림).
                 val inWindow = runCatching { DayRhythmPolicy.momentAt(now, prefs.commute, null, null) == DayMoment.EVENING_COMMUTE }.getOrDefault(false)
                 val anchor = DayRhythmPolicy.anchorOf(now, prefs.commute, null, DayMoment.EVENING_COMMUTE)
-                if (prefs.eveningReminder && inWindow && anchor != null && !prefs.dismissed(DayMoment.EVENING_COMMUTE, anchor)) LifeRestAlarm.show(context)
-                LifeRestAlarm.reschedule(context)
+                if (prefs.eveningReminder && inWindow && anchor != null && !prefs.dismissed(DayMoment.EVENING_COMMUTE, anchor)) ChabunDayAlarm.show(context)
+                ChabunDayAlarm.reschedule(context)
             }
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_TIME_CHANGED -> LifeRestAlarm.reschedule(context)
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_TIME_CHANGED -> ChabunDayAlarm.reschedule(context)
         }
     }
 }

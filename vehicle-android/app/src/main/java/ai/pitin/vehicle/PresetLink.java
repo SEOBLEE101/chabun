@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
  * Process-scoped preset-sync link: origin, bearer credential, approval, observed device id/epoch and
  * the appearance report bookkeeping. It lives in process memory only (never on disk) so closing the
  * 함께 쓰는 쉼 목록 screen no longer forgets an approved link, and the car keeps reporting its CURRENT
- * rendered theme while any Pit-In screen is in the foreground. Explicit disconnect, revocation (401/403),
+ * rendered theme while any 차분 screen is in the foreground. Explicit disconnect, revocation (401/403),
  * credential expiry and process death clear it. Appearance is only the app's rendered surface: this
  * class never sends a cabin or vehicle command and never touches health-summary credentials.
  * Main thread only, except the captured values handed to the network executor.
@@ -70,7 +70,7 @@ final class PresetLink {
     };
 
     /**
-     * While a Pit-In screen is in front, reads the shared state every 4 s so a rest sent from the phone (with its
+     * While a 차분 screen is in front, reads the shared state every 4 s so a rest sent from the phone (with its
      * 차 안 설정) reaches the car without opening the shared-presets screen. Read only: nothing is confirmed here.
      */
     private void maybeReadProposal() {
@@ -118,7 +118,7 @@ final class PresetLink {
         if (token == null && !approved) client.setOriginFromRelay(relayOrigin);
     }
 
-    /** A Pit-In screen (main app or shared presets) started. Reporting runs while at least one is started. */
+    /** A 차분 screen (main app or shared presets) started. Reporting runs while at least one is started. */
     void enterForeground() {
         if (startedScreens++ == 0) { appearance.start(); main.removeCallbacks(tick); main.post(tick); }
     }

@@ -8,8 +8,8 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 
-/** Portable checks for the life-wide rest policies (DayRhythm, Warmup, HeartNudge, PlaceBook); no Android device. */
-object LifeRestChecks {
+/** Portable checks for the day-rest policies (DayRhythm, Warmup, HeartNudge, PlaceBook); no Android device. */
+object ChabunDayChecks {
     @JvmStatic fun main(args: Array<String>) {
         var checks = 0
         fun verify(value: Boolean, what: String = "") { check(value) { "failed: $what" }; checks++ }
@@ -211,6 +211,6 @@ object LifeRestChecks {
         verify(PlaceBook.decode(enc.replace("placebook/1\t1", "placebook/1\t0")).countVisits.not())
         verify(PlaceKind.of("nope") == PlaceKind.OTHER && PlaceKind.of("park") == PlaceKind.PARK)
 
-        println("LifeRestChecks: $checks checks passed")
+        println("ChabunDayChecks: $checks checks passed")
     }
 }

@@ -318,8 +318,8 @@ class ConnectScreen(shell: PhoneShell) : Screen(shell) {
         })
         val rows = mutableListOf<View>(
             ui.row("car", "차량", subView = ui.live(if (app.pairingConfirmed) "차량 · 이어져 있어요" else conn, idle)) { shell.push(PairScreen(shell)) },
-            ui.row("pulse", "운동 기록", if (LifeRestPrefs(ctx).readsExerciseOnOpen()) "$source · 하루 쉼을 켜 둬서 앱을 열 때도 운동 시간을 읽어요" else "$source · 누를 때만 최근 운동을 읽어요", end = health) { shell.push(HealthScreen(shell)) },
-            ui.row("today", "하루 쉼", "출퇴근 · 운동 전후 · 쉬어 갈 곳", end = if (LifeRestPrefs(ctx).commute.enabled) "켜짐" else "꺼짐") { shell.push(LifeRestScreen(shell)) },
+            ui.row("pulse", "운동 기록", if (ChabunDayPrefs(ctx).readsExerciseOnOpen()) "$source · 하루 쉼을 켜 둬서 앱을 열 때도 운동 시간을 읽어요" else "$source · 누를 때만 최근 운동을 읽어요", end = health) { shell.push(HealthScreen(shell)) },
+            ui.row("today", "하루 쉼", "출퇴근 · 운동 전후 · 쉬어 갈 곳", end = if (ChabunDayPrefs(ctx).commute.enabled) "켜짐" else "꺼짐") { shell.push(ChabunDayScreen(shell)) },
             ui.row("sliders", "취향 함께 쓰기", "차와 웹이 같은 쉼 목록을 봐요", end = Fmt.syncedState(ctx)) { app.openSyncedPresets() }
         )
         // 집 연결은 아직 합성 기기만 있는 체험이라 디버그 빌드에서만 보인다.

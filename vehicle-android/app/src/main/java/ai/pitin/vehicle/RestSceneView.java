@@ -57,7 +57,7 @@ import java.util.List;
  * left and is never restarted by the finish itself.
  */
 final class RestSceneView extends FrameLayout implements TextureView.SurfaceTextureListener {
-    private static final String TAG = "PitInRestScene";
+    private static final String TAG = "ChabunRestScene";
     /** Breath amplitude: scale = 1 + BREATH × expansion. */
     static final float BREATH = .04f;
     /** Must match tools/prepare_rest_scenes.py (crop size and flat colour = CarTheme bg). */

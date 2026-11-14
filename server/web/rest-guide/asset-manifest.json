@@ -3,7 +3,7 @@
   "assets": [
     {
       "file": "assets/graphite-guided-v5.png",
-      "sourceAbsolutePath": "pit-in\\images\\graphite-guided-v5.png",
+      "sourceAbsolutePath": "chabun\\images\\graphite-guided-v5.png",
       "bytes": 1486935,
       "sha256": "8f5381fd71a4228e0176314fed05d1761e6549360d3f03b1183d851502494c64",
       "originalSha256": "8f5381fd71a4228e0176314fed05d1761e6549360d3f03b1183d851502494c64",
@@ -11,7 +11,7 @@
     },
     {
       "file": "assets/graphite-resume-v5.png",
-      "sourceAbsolutePath": "pit-in\\images\\graphite-resume-v5.png",
+      "sourceAbsolutePath": "chabun\\images\\graphite-resume-v5.png",
       "bytes": 1480654,
       "sha256": "fd40d9c1eb415a2507e0631966113c68e44b9746f96f50177b73faec3118ec6b",
       "originalSha256": "fd40d9c1eb415a2507e0631966113c68e44b9746f96f50177b73faec3118ec6b",
@@ -19,7 +19,7 @@
     },
     {
       "file": "assets/graphite-guided-v5-grok.mp4",
-      "sourceAbsolutePath": "pit-in\\grok-videos\\graphite-guided-v5-grok.mp4",
+      "sourceAbsolutePath": "chabun\\grok-videos\\graphite-guided-v5-grok.mp4",
       "bytes": 1286734,
       "sha256": "74ecb10ae2ec079f438eb8ce6487c471bec7da2ea0bfe91f27c93071d7239718",
       "originalSha256": "74ecb10ae2ec079f438eb8ce6487c471bec7da2ea0bfe91f27c93071d7239718",
@@ -27,7 +27,7 @@
     },
     {
       "file": "assets/graphite-resume-v5-grok.mp4",
-      "sourceAbsolutePath": "pit-in\\grok-videos\\graphite-resume-v5-grok.mp4",
+      "sourceAbsolutePath": "chabun\\grok-videos\\graphite-resume-v5-grok.mp4",
       "bytes": 1488012,
       "sha256": "6bb5efead3f826ec3f3ac6d43f518d9aa9a51df2adf2b187e891c14db0e64d6c",
       "originalSha256": "6bb5efead3f826ec3f3ac6d43f518d9aa9a51df2adf2b187e891c14db0e64d6c",
@@ -36,8 +36,8 @@
     {
       "file": "assets/hybrid-motion.mp4",
       "url": "/rest-guide/assets/hybrid-motion.mp4",
-      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Pit-In/hybrid-motion/renders/pit-in-hybrid-motion.mp4",
-      "sourceAbsolutePath": "hybrid-motion\\renders\\pit-in-hybrid-motion.mp4",
+      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Chabun/hybrid-motion/renders/chabun-hybrid-motion.mp4",
+      "sourceAbsolutePath": "hybrid-motion\\renders\\chabun-hybrid-motion.mp4",
       "bytes": 17739833,
       "sha256": "2c29420b896fae8908eaf7c6eb2bc612dfe31491200ad26101c4b443f21bbbf3",
       "delivery": "Server alias to imported source file; no media copy"
@@ -45,8 +45,8 @@
     {
       "file": "assets/code-motion.mp4",
       "url": "/rest-guide/assets/code-motion.mp4",
-      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Pit-In/code-motion/renders/pit-in-code-motion.mp4",
-      "sourceAbsolutePath": "code-motion\\renders\\pit-in-code-motion.mp4",
+      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Chabun/code-motion/renders/chabun-code-motion.mp4",
+      "sourceAbsolutePath": "code-motion\\renders\\chabun-code-motion.mp4",
       "bytes": 14859463,
       "sha256": "7d44714223af6ff687affe7a11fa95f2efafb276ea73cdb9a0ab7b9344ac0cdf",
       "delivery": "Server alias to imported source file; no media copy"
@@ -54,7 +54,7 @@
     {
       "file": "assets/graphite-guided-loop-10s.mp4",
       "url": "/rest-guide/assets/graphite-guided-loop-10s.mp4",
-      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Pit-In/grok-videos/loops/graphite-guided-loop-10s.mp4",
+      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Chabun/grok-videos/loops/graphite-guided-loop-10s.mp4",
       "sourceAbsolutePath": "grok-videos\\loops\\graphite-guided-loop-10s.mp4",
       "bytes": 1070248,
       "sha256": "4f9a5fdd7ac175a4839da2ac3a48edbce18180a3f5142995d11b939da6843841",
@@ -63,7 +63,7 @@
     {
       "file": "assets/graphite-resume-loop-10s.mp4",
       "url": "/rest-guide/assets/graphite-resume-loop-10s.mp4",
-      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Pit-In/grok-videos/loops/graphite-resume-loop-10s.mp4",
+      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Chabun/grok-videos/loops/graphite-resume-loop-10s.mp4",
       "sourceAbsolutePath": "grok-videos\\loops\\graphite-resume-loop-10s.mp4",
       "bytes": 1174657,
       "sha256": "34cdc638947280414842a99ee83f8c156b5a2a03c55f16f7f5835ea0fc924e6e",
@@ -72,7 +72,7 @@
     {
       "file": "assets/pearl-guided-loop-10s.mp4",
       "url": "/rest-guide/assets/pearl-guided-loop-10s.mp4",
-      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Pit-In/grok-videos/loops/pearl-guided-loop-10s.mp4",
+      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Chabun/grok-videos/loops/pearl-guided-loop-10s.mp4",
       "sourceAbsolutePath": "grok-videos\\loops\\pearl-guided-loop-10s.mp4",
       "bytes": 1484302,
       "sha256": "7e5be1912cd45e923e146ce4c5490361376fa2197125836b9c27998b831a3496",
@@ -81,7 +81,7 @@
     {
       "file": "assets/umber-freedom-loop-10s.mp4",
       "url": "/rest-guide/assets/umber-freedom-loop-10s.mp4",
-      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Pit-In/grok-videos/loops/umber-freedom-loop-10s.mp4",
+      "sourceRelativePath": "reference/motion-handoff-2026-10-25/Chabun/grok-videos/loops/umber-freedom-loop-10s.mp4",
       "sourceAbsolutePath": "grok-videos\\loops\\umber-freedom-loop-10s.mp4",
       "bytes": 5725585,
       "sha256": "1a14d8210d63d7567a5fa2801ff67b05ab85b747d96209c315cb1e7fb3af7d86",

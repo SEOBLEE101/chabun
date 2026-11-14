@@ -29,7 +29,7 @@ public final class TlsTransportInstrumentation extends Instrumentation {
             report.append("Production RelayClient /api/health only. No credentials, pairing or health data.\n");
             String good = origin("goodOrigin");
             JSONObject health = new RelayClient(good, false).request("GET", "/api/health", null, null);
-            check("pit-in-relay".equals(health.optString("service")) && "tls".equals(health.optString("transport")),
+            check("chabun-relay".equals(health.optString("service")) && "tls".equals(health.optString("transport")),
                     "trusted certificate and matching hostname return relay health JSON over HTTPS");
             for (String host : new String[]{"localhost", "127.0.0.1", "10.0.2.2", "example.com"})
                 check(!NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(host), "cleartext denied for " + host);

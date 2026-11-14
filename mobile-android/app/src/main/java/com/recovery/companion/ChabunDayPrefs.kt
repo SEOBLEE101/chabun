@@ -8,8 +8,8 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 
 /** 생활 전반 쉼 설정. 이 폰 안에만 저장하고 서버·차로 보내지 않는다. 깨진 값은 기본값으로 돌아간다. */
-class LifeRestPrefs(context: Context) {
-    private val p = context.getSharedPreferences("chabun_life_rest", Context.MODE_PRIVATE)
+class ChabunDayPrefs(context: Context) {
+    private val p = context.getSharedPreferences("chabun_day", Context.MODE_PRIVATE)
 
     var commute: CommuteSettings
         get() = runCatching {
