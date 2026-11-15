@@ -466,7 +466,7 @@ public final class ConnectedPresetsActivity extends Activity implements PresetLi
                     if (isDestroyed() || isFinishing() || busy || !policy.canWrite() || !target.id.equals(seenPlaceId)) { navigating = false; render(); return; }
                     if (!parkedForRoute()) { navigating = false; placeNote = "주차하고 멈춘 뒤에 내비로 보낼 수 있어요. 주차 상태를 확인하지 못했으면 잠시 뒤 다시 눌러 주세요."; render(); return; }
                     placeNote = "내비에 보내고 있어요."; render();
-                    navigator().go(target, (ok, text) -> {
+                    navigator().go(target, this::parkedForRoute, (ok, text) -> {
                         navigating = false; placeNote = text; message = text;
                         // A route was set: the card has done its job. A name search keeps the card until the driver clears it.
                         // The navigation screen comes to the front, so this screen may not be writable now: clear when it can.

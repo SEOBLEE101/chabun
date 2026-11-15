@@ -10,5 +10,11 @@ interface PlaceNavigator extends AutoCloseable {
     /** Called on the main thread; {@code callback} is called once, on the main thread. */
     void go(RestPlace place, Callback callback);
 
+    /**
+     * Like {@link #go(RestPlace, Callback)}, but {@code stillParked} is asked again on the main thread right before the
+     * request goes to the navigation, because connecting can take a while. False ends the request without sending.
+     */
+    default void go(RestPlace place, java.util.function.BooleanSupplier stillParked, Callback callback) { go(place, callback); }
+
     @Override void close();
 }

@@ -33,6 +33,7 @@ final class PlaceNavigatorFactory {
         private boolean ready, initializing, closed, listening;
         private Callback pending;
         private RestPlace waiting;
+        private java.util.function.BooleanSupplier stillParked;
         /** Read on the binder thread that delivers navigation events. */
         private volatile long generation;
         private long initSeq;
@@ -42,10 +43,12 @@ final class PlaceNavigatorFactory {
 
         public boolean live() { return true; }
 
-        public void go(RestPlace place, Callback callback) {
+        public void go(RestPlace place, Callback callback) { go(place, () -> true, callback); }
+
+        @Override public void go(RestPlace place, java.util.function.BooleanSupplier parked, Callback callback) {
             if (closed) { callback.done(false, "화면이 닫혀 길안내를 보내지 않았어요."); return; }
             if (pending != null) { callback.done(false, "앞의 요청을 기다리는 중이에요."); return; }
-            pending = callback; waiting = place; generation++;
+            pending = callback; waiting = place; stillParked = parked; generation++;
             main.postDelayed(timeout, TIMEOUT_MS);
             if (ready) { send(); return; }
             if (initializing) return; // the running initialize sends the waiting place when it connects
@@ -84,6 +87,10 @@ final class PlaceNavigatorFactory {
         private void send() {
             RestPlace place = waiting;
             if (place == null) return;
+            if (stillParked != null && !stillParked.getAsBoolean()) {
+                finish(false, "내비 연결을 기다리는 사이 주차 상태를 다시 확인하지 못했어요. 주차한 채로 다시 눌러 주세요.");
+                return;
+            }
             try {
                 if (place.hasCoordinates()) {
                     if (!listening) { navi.addListener(this); listening = true; }
@@ -103,7 +110,7 @@ final class PlaceNavigatorFactory {
         private void finish(boolean ok, String message) {
             main.removeCallbacks(timeout);
             detach();
-            Callback c = pending; pending = null; waiting = null;
+            Callback c = pending; pending = null; waiting = null; stillParked = null;
             if (c != null) c.done(ok, message);
         }
 

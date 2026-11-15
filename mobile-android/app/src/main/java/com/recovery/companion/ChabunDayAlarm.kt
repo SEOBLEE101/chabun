@@ -40,7 +40,10 @@ object ChabunDayAlarm {
 
     fun canNotify(ctx: Context): Boolean =
         (Build.VERSION.SDK_INT < 33 || ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
-            ctx.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() != false
+            ctx.getSystemService(NotificationManager::class.java)?.let { nm ->
+                // 앱 알림이 켜져 있어도 '하루 쉼 알림' 채널만 꺼 두었으면 알릴 수 없다(채널이 아직 없으면 처음 보낼 때 만든다).
+                nm.areNotificationsEnabled() && nm.getNotificationChannel(CHANNEL)?.importance != NotificationManager.IMPORTANCE_NONE
+            } != false
 
     fun show(ctx: Context) {
         if (!canNotify(ctx)) return

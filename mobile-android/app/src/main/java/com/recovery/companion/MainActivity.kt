@@ -76,8 +76,11 @@ class MainActivity : ComponentActivity(), PitApp {
     private val notificationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
         val ok = granted && ChabunDayAlarm.canNotify(this)
         ChabunDayPrefs(this).eveningReminder = ok; ChabunDayAlarm.reschedule(this)
-        if (!ok) shell.report("알림을 허용하지 않아 퇴근 알림을 켜지 않았어요. 홈 카드는 그대로 보여요.")
         refreshHome()
+        // 거절 뒤 다시 물을 수 없으면(두 번 거절 등) 대화상자가 뜨지 않으므로 알림 설정으로 바로 안내한다.
+        val askable = android.os.Build.VERSION.SDK_INT >= 33 && shouldShowRequestPermissionRationale(android.Manifest.permission.POST_NOTIFICATIONS)
+        if (!ok && (granted || !askable)) openNotificationSettings()
+        else if (!ok) shell.report("알림을 허용하지 않아 퇴근 알림을 켜지 않았어요. 홈 카드는 그대로 보여요.")
     }
     private val heartWritePermission = HealthPermission.getWritePermission(HeartRateRecord::class)
     private val heartWritePermissions = registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
@@ -111,6 +114,14 @@ class MainActivity : ComponentActivity(), PitApp {
             catch (e: Exception) { shell.report("합성 심박을 넣지 못했어요: ${e.javaClass.simpleName}") }
         }
     }
+    private fun openNotificationSettings() {
+        shell.report("휴대폰 설정 › 앱 › 차분 › 알림에서 알림을 켜면 퇴근 알림을 쓸 수 있어요.")
+        runCatching {
+            startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName))
+        }
+    }
+
     override fun setEveningReminder(on: Boolean) {
         if (on && !ChabunDayAlarm.canNotify(this)) {
             val askRuntime = android.os.Build.VERSION.SDK_INT >= 33 &&
@@ -118,11 +129,7 @@ class MainActivity : ComponentActivity(), PitApp {
             if (askRuntime) { notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS); return }
             // 권한은 있지만 휴대폰 설정에서 앱 알림이 꺼져 있다(또는 Android 12 이하): 켜지 않고 설정으로 안내한다.
             ChabunDayPrefs(this).eveningReminder = false; ChabunDayAlarm.reschedule(this); refreshHome()
-            shell.report("휴대폰 알림 설정에서 차분 알림을 먼저 켜 주세요.")
-            runCatching {
-                startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName))
-            }
+            openNotificationSettings()
             return
         }
         ChabunDayPrefs(this).eveningReminder = on; ChabunDayAlarm.reschedule(this); refreshHome()
